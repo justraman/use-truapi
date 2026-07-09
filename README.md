@@ -21,6 +21,8 @@ const theme = useTheme();
 | `@use-truapi/vue` | npm | Vue 3 composables |
 | `@use-truapi/core` | npm | Framework-agnostic runtime both bind to |
 
+Where this is heading: see the [roadmap](./ROADMAP.md).
+
 ## Why
 
 Products that run inside Polkadot hosts (Desktop / Mobile / Web) talk to the
