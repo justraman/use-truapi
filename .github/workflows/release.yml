@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write # npm provenance
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify tag matches package versions
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          for pkg in packages/core packages/react packages/vue; do
+            VERSION=$(node -p "require('./$pkg/package.json').version")
+            if [ "$VERSION" != "$TAG" ]; then
+              echo "::error::$pkg is $VERSION but tag is $TAG"
+              exit 1
+            fi
+          done
+
+      - name: Build
+        run: bunx nx run-many -t build --projects=@use-truapi/core,@use-truapi/react,@use-truapi/vue
+
+      - name: Test
+        run: bunx nx run-many -t test --projects=@use-truapi/core,@use-truapi/react,@use-truapi/vue
+
+      # workspace:* protocol must be resolved for the registry; `bun pm pack`
+      # rewrites it, npm publish then ships the tarball.
+      - name: Publish @use-truapi/core
+        run: cd packages/core && bun pm pack && npm publish --provenance --access public *.tgz
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @use-truapi/react
+        run: cd packages/react && bun pm pack && npm publish --provenance --access public *.tgz
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @use-truapi/vue
+        run: cd packages/vue && bun pm pack && npm publish --provenance --access public *.tgz
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,25 @@
+{
+  "name": "use-truapi",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "packageManager": "bun@1.3.13",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "e2e"
+  ],
+  "scripts": {
+    "build": "nx run-many -t build",
+    "test": "nx run-many -t test",
+    "typecheck": "nx run-many -t typecheck",
+    "lint": "nx run-many -t lint",
+    "e2e": "nx run -t e2e e2e",
+    "graph": "nx graph"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "nx": "^21.2.3",
+    "typescript": "^5.8.3"
+  }
+}
