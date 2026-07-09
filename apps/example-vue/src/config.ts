@@ -10,8 +10,8 @@ export const config = defineConfig({
     },
   },
   dappName: "use-truapi-example",
-  // Host connect resolves accounts through the product account derivation —
-  // without this the host provider returns an empty account list.
+  // Optional (dappName alone derives account 0); pinned here because the e2e
+  // fixture maps "use-truapi-example.dot/0" to a funded dev account.
   productAccount: { dotNsIdentifier: "use-truapi-example.dot" },
   statements: { appName: "use-truapi-example" },
 });
