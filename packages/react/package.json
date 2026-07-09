@@ -1,0 +1,50 @@
+{
+  "name": "@use-truapi/react",
+  "version": "0.1.0",
+  "description": "React hooks for TrUAPI / Polkadot host products. One install: chain queries, accounts, transactions, chat, statements, payments, cloud storage.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/use-truapi/use-truapi.git",
+    "directory": "packages/react"
+  },
+  "keywords": ["react", "hooks", "polkadot", "truapi", "product-sdk", "web3"],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src"
+  },
+  "dependencies": {
+    "@use-truapi/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "polkadot-api": "^2.1.6",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "jsdom": "^26.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tsup": "^8.5.0",
+    "vitest": "^3.2.4"
+  }
+}

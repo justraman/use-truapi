@@ -1,0 +1,49 @@
+{
+  "name": "@use-truapi/core",
+  "version": "0.1.0",
+  "description": "Framework-agnostic runtime for TrUAPI hooks: host detection, chain clients, signers, transactions, chat, statements, payments and cloud storage for Polkadot host products.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/use-truapi/use-truapi.git",
+    "directory": "packages/core"
+  },
+  "keywords": ["polkadot", "truapi", "product-sdk", "hooks", "web3"],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src"
+  },
+  "dependencies": {
+    "@parity/product-sdk-address": "^0.1.1",
+    "@parity/product-sdk-cloud-storage": "^0.6.7",
+    "@parity/product-sdk-contracts": "^0.8.3",
+    "@parity/product-sdk-host": "^0.12.0",
+    "@parity/product-sdk-signer": "^0.9.0",
+    "@parity/product-sdk-statement-store": "^0.5.0",
+    "@parity/product-sdk-tx": "^0.2.17",
+    "@parity/product-sdk-utils": "^0.1.1",
+    "polkadot-api": "^2.1.6"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "vitest": "^3.2.4"
+  }
+}
