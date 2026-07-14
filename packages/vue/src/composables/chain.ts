@@ -1,13 +1,13 @@
-import { type AccountBalance, type TypedApiOf, resolveChain } from "@use-truapi/core";
+import { type AccountBalance, type TypedApiOf, queryKeys, resolveChain } from "@use-truapi/core";
 import type { PolkadotClient } from "polkadot-api";
 import { type ChainKey, type ResolvedChains, useRuntime } from "../context";
 import {
-  type AsyncData,
   type MaybeGetter,
-  type WatchState,
+  type QueryOptions,
+  type QueryResult,
   toGetter,
-  useAsyncData,
-  useSubscription,
+  useLiveQuery,
+  useTruapiQuery,
 } from "../internal";
 
 export interface ChainScope<K extends ChainKey = ChainKey> {
@@ -15,39 +15,66 @@ export interface ChainScope<K extends ChainKey = ChainKey> {
 }
 
 /** The raw PAPI client — escape hatch for anything the composables don't cover. */
-export function useChainClient(options?: ChainScope): AsyncData<PolkadotClient> {
+export function useChainClient(
+  options?: ChainScope & { query?: QueryOptions<PolkadotClient> },
+): QueryResult<PolkadotClient> {
   const runtime = useRuntime();
-  return useAsyncData(() => runtime.chains.getClient(options?.chain));
+  const chainKey = resolveChain(runtime.config, options?.chain).key;
+  return useTruapiQuery(
+    () => queryKeys.chainClient(chainKey),
+    () => runtime.chains.getClient(options?.chain),
+    options,
+  );
 }
 
 /** The descriptor-typed PAPI api for a configured chain. */
 export function useTypedApi<K extends ChainKey>(
-  options?: ChainScope<K>,
-): AsyncData<TypedApiOf<ResolvedChains, K>> {
+  options?: ChainScope<K> & { query?: QueryOptions<TypedApiOf<ResolvedChains, K>> },
+): QueryResult<TypedApiOf<ResolvedChains, K>> {
   const runtime = useRuntime();
-  return useAsyncData(
+  const chainKey = resolveChain(runtime.config, options?.chain).key;
+  return useTruapiQuery(
+    () => queryKeys.typedApi(chainKey),
     () => runtime.chains.getTypedApi(options?.chain) as Promise<TypedApiOf<ResolvedChains, K>>,
+    options,
   );
 }
 
 /**
- * One-shot read against the typed api. Reactive sources read inside `read`
- * (refs, props) re-trigger it automatically.
+ * One-shot read against the typed api, cached under
+ * `queryKeys.chainQuery(chain, deps)`. Pass getters in `deps` for reactive
+ * inputs — they become part of the query key, so the read re-runs (and
+ * caches separately) when they change.
  */
 export function useChainQuery<T, K extends ChainKey = ChainKey>(
   read: (api: TypedApiOf<ResolvedChains, K>) => Promise<T>,
-  options?: ChainScope<K> & { enabled?: MaybeGetter<boolean> },
-): AsyncData<T> {
+  deps: readonly MaybeGetter<unknown>[] = [],
+  options?: ChainScope<K> & { enabled?: MaybeGetter<boolean>; query?: QueryOptions<T> },
+): QueryResult<T> {
   const runtime = useRuntime();
-  const enabled = toGetter(options?.enabled ?? true);
-  return useAsyncData(async () => {
-    if (!enabled()) return undefined as T;
-    const api = (await runtime.chains.getTypedApi(options?.chain)) as TypedApiOf<ResolvedChains, K>;
-    return read(api);
-  });
+  const chainKey = resolveChain(runtime.config, options?.chain).key;
+  return useTruapiQuery(
+    () =>
+      queryKeys.chainQuery(
+        chainKey,
+        deps.map((dep) => toGetter(dep)()),
+      ),
+    async () => {
+      const api = (await runtime.chains.getTypedApi(options?.chain)) as TypedApiOf<
+        ResolvedChains,
+        K
+      >;
+      return read(api);
+    },
+    options,
+  );
 }
 
-/** Live subscription to any typed-api observable; torn down with the scope. */
+/**
+ * Live subscription to any typed-api observable (storage watch, events, …);
+ * one shared subscription per key, values bridged into the query cache,
+ * torn down when the last consumer's scope disposes.
+ */
 export function useChainSubscription<T, K extends ChainKey = ChainKey>(
   select: (
     api: TypedApiOf<ResolvedChains, K>,
@@ -57,59 +84,71 @@ export function useChainSubscription<T, K extends ChainKey = ChainKey>(
       unsubscribe(): void;
     };
   },
-  options?: ChainScope<K> & { enabled?: MaybeGetter<boolean> },
-): WatchState<T> {
+  deps: readonly MaybeGetter<unknown>[] = [],
+  options?: ChainScope<K> & { enabled?: MaybeGetter<boolean>; query?: QueryOptions<T> },
+): QueryResult<T> {
   const runtime = useRuntime();
-  return useSubscription<T>(
-    (onValue, onError) =>
+  const chainKey = resolveChain(runtime.config, options?.chain).key;
+  return useLiveQuery<T>({
+    queryKey: () =>
+      queryKeys.chainSubscription(
+        chainKey,
+        deps.map((dep) => toGetter(dep)()),
+      ),
+    attach: (onValue, onError) =>
       runtime.chains.watch<T, K>(select as never, onValue, {
         ...(options?.chain !== undefined ? { chain: options.chain } : {}),
         onError,
       }),
-    [],
-    toGetter(options?.enabled ?? true),
-  );
+    enabled: options?.enabled ?? true,
+    ...(options?.query !== undefined ? { query: options.query } : {}),
+  });
 }
 
 /** Best-block number, live. */
 export function useBlockNumber(
-  options?: ChainScope & { enabled?: MaybeGetter<boolean> },
-): WatchState<number> {
+  options?: ChainScope & { enabled?: MaybeGetter<boolean>; query?: QueryOptions<number> },
+): QueryResult<number> {
   const runtime = useRuntime();
-  return useSubscription<number>(
-    (onValue, onError) =>
+  const chainKey = resolveChain(runtime.config, options?.chain).key;
+  return useLiveQuery<number>({
+    queryKey: () => queryKeys.blockNumber(chainKey),
+    attach: (onValue, onError) =>
       runtime.chains.watchBlockNumber(onValue, {
         ...(options?.chain !== undefined ? { chain: options.chain } : {}),
         onError,
       }),
-    [],
-    toGetter(options?.enabled ?? true),
-  );
+    enabled: options?.enabled ?? true,
+    ...(options?.query !== undefined ? { query: options.query } : {}),
+  });
 }
 
 /** Live native balance of `address` (free/reserved/frozen, in planck). */
 export function useBalance(
   address: MaybeGetter<string | undefined>,
-  options?: ChainScope,
-): WatchState<AccountBalance> {
+  options?: ChainScope & { query?: QueryOptions<AccountBalance> },
+): QueryResult<AccountBalance> {
   const runtime = useRuntime();
+  const chainKey = resolveChain(runtime.config, options?.chain).key;
   const getAddress = toGetter(address);
-  return useSubscription<AccountBalance>(
-    (onValue, onError) =>
+  return useLiveQuery<AccountBalance>({
+    queryKey: () => queryKeys.balance(chainKey, getAddress() ?? null),
+    attach: (onValue, onError) =>
       runtime.chains.watchBalance(getAddress() ?? "", onValue, {
         ...(options?.chain !== undefined ? { chain: options.chain } : {}),
         onError,
       }),
-    [getAddress],
-    () => getAddress() !== undefined,
-  );
+    enabled: () => getAddress() !== undefined,
+    ...(options?.query !== undefined ? { query: options.query } : {}),
+  });
 }
 
 /** Chain name/properties as reported by the host (null standalone). */
 export function useChainSpec(options?: ChainScope) {
   const runtime = useRuntime();
-  return useAsyncData(async () => {
-    const { chain } = resolveChain(runtime.config, options?.chain);
-    return runtime.host.getChainSpec(chain.genesisHash);
-  });
+  const { key: chainKey, chain } = resolveChain(runtime.config, options?.chain);
+  return useTruapiQuery(
+    () => queryKeys.chainSpec(chainKey),
+    () => runtime.host.getChainSpec(chain.genesisHash),
+  );
 }

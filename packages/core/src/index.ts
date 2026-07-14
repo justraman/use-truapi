@@ -1,6 +1,8 @@
 export * from "./async-state";
 export * from "./store";
 export * from "./config";
+export * from "./query-keys";
+export * from "./live-query";
 export * from "./runtime";
 export { createHostController, unwrapResult } from "./host";
 export type { HostController, HostKvStorage, HostMode } from "./host";

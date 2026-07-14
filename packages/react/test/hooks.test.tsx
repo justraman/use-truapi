@@ -1,5 +1,6 @@
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { createRuntime, defineConfig } from "@use-truapi/core";
+import { createRuntime, defineConfig, queryKeys } from "@use-truapi/core";
 import type { ChainDefinition } from "polkadot-api";
 import { createElement, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
@@ -20,9 +21,13 @@ const config = defineConfig({
   chains: { test: { descriptor: {} as ChainDefinition, genesisHash: "0x11" as `0x${string}` } },
 });
 
-function wrapperFor(runtime = createRuntime(config)) {
+function wrapperFor(runtime = createRuntime(config), queryClient?: QueryClient) {
   return ({ children }: { children: ReactNode }) =>
-    createElement(TruapiProvider, { runtime }, children);
+    createElement(
+      TruapiProvider,
+      queryClient ? { runtime, queryClient } : { runtime },
+      children,
+    );
 }
 
 describe("TruapiProvider / useRuntime", () => {
@@ -34,6 +39,32 @@ describe("TruapiProvider / useRuntime", () => {
     const runtime = createRuntime(config);
     const { result } = renderHook(() => useRuntime(), { wrapper: wrapperFor(runtime) });
     expect(result.current).toBe(runtime);
+  });
+
+  it("provides its own QueryClient when the app has none", () => {
+    const { result } = renderHook(() => useQueryClient(), { wrapper: wrapperFor() });
+    expect(result.current).toBeInstanceOf(QueryClient);
+  });
+
+  it("reuses the app's QueryClient when rendered under a QueryClientProvider", () => {
+    const appClient = new QueryClient();
+    const runtime = createRuntime(config);
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(
+        QueryClientProvider,
+        { client: appClient },
+        createElement(TruapiProvider, { runtime }, children),
+      );
+    const { result } = renderHook(() => useQueryClient(), { wrapper });
+    expect(result.current).toBe(appClient);
+  });
+
+  it("prefers an explicit queryClient prop", () => {
+    const explicit = new QueryClient();
+    const { result } = renderHook(() => useQueryClient(), {
+      wrapper: wrapperFor(createRuntime(config), explicit),
+    });
+    expect(result.current).toBe(explicit);
   });
 });
 
@@ -54,13 +85,15 @@ describe("host hooks", () => {
     expect(result.current.source).toBe("system");
   });
 
-  it("useHostStorage round-trips through localStorage", async () => {
+  it("useHostStorage round-trips and updates the query cache", async () => {
+    const client = new QueryClient();
     const { result } = renderHook(() => useHostStorage<{ n: number }>("test-key"), {
-      wrapper: wrapperFor(),
+      wrapper: wrapperFor(createRuntime(config), client),
     });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isPending).toBe(false));
     await act(() => result.current.set({ n: 5 }));
     await waitFor(() => expect(result.current.data).toEqual({ n: 5 }));
+    expect(client.getQueryData(queryKeys.hostStorage("test-key"))).toEqual({ n: 5 });
     await act(() => result.current.remove());
     await waitFor(() => expect(result.current.data).toBeNull());
   });
@@ -81,14 +114,16 @@ describe("account hooks", () => {
     expect(result.current.selectedAccount).not.toBeNull();
   });
 
-  it("useConnect exposes mutation state", async () => {
+  it("useConnect exposes TanStack mutation state", async () => {
     const { result } = renderHook(() => useConnect(), { wrapper: wrapperFor() });
     expect(result.current.status).toBe("idle");
     await act(async () => {
-      await result.current.run();
+      await result.current.mutateAsync();
     });
-    expect(result.current.status).toBe("success");
+    await waitFor(() => expect(result.current.status).toBe("success"));
     expect(result.current.data?.length).toBeGreaterThan(0);
+    act(() => result.current.reset());
+    await waitFor(() => expect(result.current.status).toBe("idle"));
   });
 
   it("useSelectedAccount tracks selection across hooks sharing a runtime", async () => {

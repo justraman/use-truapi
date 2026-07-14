@@ -1,11 +1,20 @@
 import {
-  type AsyncState,
+  type QueryClient,
+  type QueryKey,
+  type UseMutationOptions,
+  type UseMutationResult,
+  type UseQueryOptions,
+  type UseQueryResult,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
+  type LiveAttach,
+  type LiveRegistry,
   type ReadonlyStore,
-  asyncError,
-  asyncIdle,
-  asyncLoading,
-  asyncSuccess,
-  toError,
+  createLiveRegistry,
+  hashQueryKey,
 } from "@use-truapi/core";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
@@ -14,132 +23,161 @@ export function useStore<T>(store: ReadonlyStore<T>): T {
   return useSyncExternalStore(subscribe, store.get, store.get);
 }
 
-export interface AsyncData<T> extends AsyncState<T> {
-  isLoading: boolean;
-  refetch: () => void;
+/** TanStack Query options accepted by every read hook via `query`. */
+export type QueryOptions<T> = Omit<UseQueryOptions<T, Error>, "queryKey" | "queryFn">;
+
+/** TanStack Mutation options accepted by every mutation hook via `mutation`. */
+export type MutationOptions<TData, TVariables> = Omit<
+  UseMutationOptions<TData, Error, TVariables>,
+  "mutationFn"
+>;
+
+/** Mutation variables that may be omitted entirely: `mutate()` instead of `mutate(undefined)`. */
+// biome-ignore lint/suspicious/noConfusingVoidType: void is what lets TanStack's mutate() be called bare
+export type OptionalVariables<T> = T | void;
+
+/** `useQuery` with a stable identity for the hook-supplied fetcher. */
+export function useTruapiQuery<T>(
+  queryKey: QueryKey,
+  queryFn: () => Promise<T>,
+  options?: { enabled?: boolean; query?: QueryOptions<T> },
+): UseQueryResult<T, Error> {
+  const fnRef = useRef(queryFn);
+  fnRef.current = queryFn;
+  const gate = options?.enabled ?? true;
+  return useQuery({
+    ...options?.query,
+    queryKey,
+    queryFn: () => fnRef.current(),
+    enabled: gate === false ? false : (options?.query?.enabled ?? true),
+  });
 }
 
-/** Run an async read whenever `deps` change; stale results never land. */
-export function useAsyncData<T>(fn: () => Promise<T>, deps: readonly unknown[]): AsyncData<T> {
-  const [state, setState] = useState<AsyncState<T>>(asyncIdle);
-  const [epoch, setEpoch] = useState(0);
-  const fnRef = useRef(fn);
-  fnRef.current = fn;
+/** `useMutation` with a stable identity for the hook-supplied action. */
+export function useTruapiMutation<TVariables, TData>(
+  mutationFn: (variables: TVariables) => Promise<TData>,
+  options?: MutationOptions<TData, TVariables>,
+): UseMutationResult<TData, Error, TVariables> {
+  const fnRef = useRef(mutationFn);
+  fnRef.current = mutationFn;
+  return useMutation({
+    ...options,
+    mutationFn: (variables: TVariables) => fnRef.current(variables),
+  });
+}
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: caller-supplied deps
+// One live-subscription registry per QueryClient: subscriptions are shared
+// across every component that mounts the same query key.
+const registries = new WeakMap<QueryClient, LiveRegistry>();
+function registryFor(client: QueryClient): LiveRegistry {
+  let registry = registries.get(client);
+  if (!registry) {
+    registry = createLiveRegistry();
+    registries.set(client, registry);
+  }
+  return registry;
+}
+
+export interface LiveQueryConfig<TIn, TData = TIn> {
+  queryKey: QueryKey;
+  attach: LiveAttach<TIn>;
+  /** Fold an incoming value into the cached one (list accumulation). Default: replace. */
+  reduce?: (prev: TData | undefined, incoming: TIn) => TData;
+  /** When set, the query settles with this value immediately instead of awaiting the first push. */
+  seed?: () => TData;
+  enabled?: boolean;
+  query?: QueryOptions<TData>;
+}
+
+/**
+ * Bridge a core `watch*` subscription into the query cache: values land via
+ * `setQueryData` under `queryKey` (visible to devtools / other readers), the
+ * underlying subscription is shared per key, and errors surface on the
+ * result while the last data is retained.
+ */
+export function useLiveQuery<TIn, TData = TIn>(
+  config: LiveQueryConfig<TIn, TData>,
+): UseQueryResult<TData, Error> {
+  const client = useQueryClient();
+  const { queryKey, enabled = true } = config;
+  const hash = hashQueryKey(queryKey);
+  const configRef = useRef(config);
+  configRef.current = config;
+  const [subError, setSubError] = useState<Error | undefined>(undefined);
+
   useEffect(() => {
-    let cancelled = false;
-    setState((prev) => asyncLoading(prev));
-    fnRef.current().then(
-      (data) => {
-        if (!cancelled) setState(asyncSuccess(data));
-      },
-      (error) => {
-        if (!cancelled) setState((prev) => asyncError(toError(error), prev));
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [epoch, ...deps]);
-
-  return {
-    ...state,
-    isLoading: state.status === "loading" || state.status === "idle",
-    refetch: useCallback(() => setEpoch((n) => n + 1), []),
-  };
-}
-
-export interface AsyncAction<TArgs extends unknown[], T> extends AsyncState<T> {
-  run: (...args: TArgs) => Promise<T>;
-  isPending: boolean;
-  reset: () => void;
-}
-
-/** Mutation-shaped helper: explicit `run`, latest result/error as state. */
-export function useAsyncAction<TArgs extends unknown[], T>(
-  fn: (...args: TArgs) => Promise<T>,
-): AsyncAction<TArgs, T> {
-  const [state, setState] = useState<AsyncState<T>>(asyncIdle);
-  const fnRef = useRef(fn);
-  fnRef.current = fn;
-
-  const run = useCallback(async (...args: TArgs): Promise<T> => {
-    setState((prev) => asyncLoading(prev));
-    try {
-      const data = await fnRef.current(...args);
-      setState(asyncSuccess(data));
-      return data;
-    } catch (error) {
-      setState((prev) => asyncError(toError(error), prev));
-      throw error;
-    }
-  }, []);
-
-  return {
-    ...state,
-    run,
-    isPending: state.status === "loading",
-    reset: useCallback(() => setState(asyncIdle()), []),
-  };
-}
-
-export interface WatchState<T> extends AsyncState<T> {
-  isLoading: boolean;
-}
-
-/** Bridge a core `watch*` subscription (attach → unsubscribe) into state. */
-export function useWatch<T>(
-  attach: (onValue: (value: T) => void, onError: (error: unknown) => void) => () => void,
-  deps: readonly unknown[],
-  enabled = true,
-): WatchState<T> {
-  const [state, setState] = useState<AsyncState<T>>(asyncIdle);
-  const attachRef = useRef(attach);
-  attachRef.current = attach;
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: caller-supplied deps
-  useEffect(() => {
-    if (!enabled) {
-      setState(asyncIdle());
-      return;
-    }
-    setState((prev) => asyncLoading(prev));
-    return attachRef.current(
-      (value) => setState(asyncSuccess(value)),
-      (error) => setState((prev) => asyncError(toError(error), prev)),
-    );
-  }, [enabled, ...deps]);
-
-  return useMemo(
-    () => ({ ...state, isLoading: state.status === "loading" || state.status === "idle" }),
-    [state],
-  );
-}
-
-/** Accumulate values from a subscription into a bounded list. */
-export function useWatchList<T>(
-  attach: (onValue: (value: T) => void, onError: (error: unknown) => void) => () => void,
-  deps: readonly unknown[],
-  options?: { limit?: number; enabled?: boolean },
-): { items: T[]; error: Error | undefined; clear: () => void } {
-  const [items, setItems] = useState<T[]>([]);
-  const [error, setError] = useState<Error | undefined>(undefined);
-  const attachRef = useRef(attach);
-  attachRef.current = attach;
-  const limit = options?.limit ?? 500;
-  const enabled = options?.enabled ?? true;
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: caller-supplied deps
-  useEffect(() => {
-    setItems([]);
-    setError(undefined);
+    setSubError(undefined);
     if (!enabled) return;
-    return attachRef.current(
-      (value) => setItems((prev) => [...prev.slice(-(limit - 1)), value]),
-      (e) => setError(toError(e)),
+    return registryFor(client).acquire<TIn>(
+      hash,
+      (onValue, onError) => configRef.current.attach(onValue, onError),
+      (incoming) => {
+        const { reduce, queryKey: key } = configRef.current;
+        if (reduce) {
+          client.setQueryData(key, reduce(client.getQueryData(key) as TData | undefined, incoming));
+        } else {
+          client.setQueryData(key, incoming as unknown as TData);
+        }
+      },
+      setSubError,
     );
-  }, [enabled, limit, ...deps]);
+  }, [client, hash, enabled]);
 
-  return { items, error, clear: useCallback(() => setItems([]), []) };
+  const result = useQuery({
+    staleTime: Number.POSITIVE_INFINITY,
+    ...config.query,
+    queryKey,
+    queryFn: async ({ signal }) => {
+      const { seed } = configRef.current;
+      if (seed) return (client.getQueryData(queryKey) as TData | undefined) ?? seed();
+      await registryFor(client).first<TIn>(hash, signal);
+      // The cache may already hold newer pushes; never move it backwards.
+      return client.getQueryData(queryKey) as TData;
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    enabled: enabled === false ? false : (config.query?.enabled ?? true),
+  });
+
+  return useMemo(() => {
+    if (!subError) return result;
+    // Subscription errors keep the last data (matching pre-0.2 behavior) but
+    // flip the result into the error state.
+    return {
+      ...result,
+      status: "error",
+      error: subError,
+      isError: true,
+      isSuccess: false,
+      isPending: false,
+    } as UseQueryResult<TData, Error>;
+  }, [result, subError]);
+}
+
+export type LiveListQueryResult<T> = UseQueryResult<T[], Error> & { clear: () => void };
+
+/** `useLiveQuery` specialization that accumulates pushed values into a bounded list. */
+export function useLiveListQuery<T>(config: {
+  queryKey: QueryKey;
+  attach: LiveAttach<T>;
+  limit?: number;
+  enabled?: boolean;
+  query?: QueryOptions<T[]>;
+}): LiveListQueryResult<T> {
+  const client = useQueryClient();
+  const limit = config.limit ?? 500;
+  const result = useLiveQuery<T, T[]>({
+    queryKey: config.queryKey,
+    attach: config.attach,
+    reduce: (prev, incoming) => [...(prev ?? []).slice(-(limit - 1)), incoming],
+    seed: () => [],
+    ...(config.enabled !== undefined ? { enabled: config.enabled } : {}),
+    ...(config.query !== undefined ? { query: config.query } : {}),
+  });
+  const { queryKey } = config;
+  const hash = hashQueryKey(queryKey);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: hash covers queryKey
+  const clear = useCallback(() => client.setQueryData(queryKey, []), [client, hash]);
+  return useMemo(() => Object.assign({}, result, { clear }), [result, clear]);
 }

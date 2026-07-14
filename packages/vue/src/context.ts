@@ -1,3 +1,4 @@
+import { QueryClient, VUE_QUERY_CLIENT, VueQueryPlugin } from "@tanstack/vue-query";
 import {
   type AnyChains,
   type TruapiConfig,
@@ -27,12 +28,30 @@ export type ChainKey = keyof ResolvedChains & string;
 
 export const RUNTIME_KEY: InjectionKey<TruapiRuntime> = Symbol("use-truapi");
 
+/** Defaults applied when `TruapiPlugin` creates its own QueryClient. */
+export function createTruapiQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: {
+      // Chain reads stay fresh for a few seconds so remounts and duplicate
+      // composables don't hammer the RPC; override per composable via
+      // `query.staleTime` or bring your own QueryClient.
+      queries: { staleTime: 5_000 },
+    },
+  });
+}
+
 export interface TruapiPluginOptions {
   // biome-ignore lint/suspicious/noExplicitAny: TruapiConfig/TruapiRuntime are invariant in their chain map; `any` accepts every concrete config
   config?: TruapiConfig<any>;
   /** Pass a pre-built runtime instead of `config` to control its lifecycle yourself. */
   // biome-ignore lint/suspicious/noExplicitAny: see above
   runtime?: TruapiRuntime<any>;
+  /**
+   * TanStack QueryClient to use. Defaults to the app's own client when
+   * `VueQueryPlugin` is already installed, otherwise a client with use-truapi
+   * defaults is installed for you.
+   */
+  queryClient?: QueryClient;
 }
 
 /**
@@ -50,6 +69,17 @@ export const TruapiPlugin: Plugin<[TruapiPluginOptions]> = {
             throw new Error("use-truapi: TruapiPlugin needs a `config` or a `runtime`");
           })());
     app.provide(RUNTIME_KEY, runtime);
+
+    // Reuse the app's QueryClient when VueQueryPlugin is already installed
+    // (shared cache and devtools) unless the caller overrides it explicitly.
+    const provides = (app as unknown as { _context: { provides: Record<string, unknown> } })
+      ._context.provides;
+    const hasVueQuery = provides[VUE_QUERY_CLIENT] !== undefined;
+    if (options.queryClient) {
+      app.use(VueQueryPlugin, { queryClient: options.queryClient });
+    } else if (!hasVueQuery) {
+      app.use(VueQueryPlugin, { queryClient: createTruapiQueryClient() });
+    }
   },
 };
 

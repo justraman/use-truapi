@@ -164,7 +164,7 @@ interface NoteStatement {
 
 function StatementsPanel() {
   const isHost = useIsHost();
-  const { statements, error } = useStatements<NoteStatement>({ enabled: isHost });
+  const { data: statements = [], error } = useStatements<NoteStatement>({ enabled: isHost });
   const publish = usePublishStatement<NoteStatement>();
   const [draft, setDraft] = useState("");
 
@@ -195,7 +195,7 @@ function StatementsPanel() {
           type="button"
           data-testid="statement-publish"
           disabled={publish.isPending || draft === ""}
-          onClick={() => void publish.run({ text: draft }).catch(() => {})}
+          onClick={() => void publish.mutateAsync({ data: { text: draft } }).catch(() => {})}
         >
           Publish
         </button>

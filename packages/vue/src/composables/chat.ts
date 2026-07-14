@@ -1,49 +1,63 @@
-import type {
-  ChatMessageContent,
-  ChatReceivedAction,
-  ChatRoom,
-  ChatRoomDefinition,
+import {
+  type ChatMessageContent,
+  type ChatReceivedAction,
+  type ChatRoom,
+  type ChatRoomDefinition,
+  queryKeys,
 } from "@use-truapi/core";
-import { type ComputedRef, type Ref, type ShallowRef, computed, watch as vueWatch } from "vue";
+import { watch as vueWatch } from "vue";
 import { useRuntime } from "../context";
 import {
-  type AsyncAction,
-  type AsyncData,
+  type LiveListQueryResult,
   type MaybeGetter,
+  type MutationOptions,
+  type MutationResult,
+  type QueryOptions,
+  type QueryResult,
   toGetter,
-  useAsyncAction,
-  useAsyncData,
-  useSubscriptionList,
+  useLiveListQuery,
+  useLiveQuery,
+  useTruapiMutation,
+  useTruapiQuery,
 } from "../internal";
 
 /** Register a chat room (idempotent). Chat is host-only. */
-export function useChatRoom(room: ChatRoomDefinition): AsyncData<"New" | "Exists"> {
+export function useChatRoom(
+  room: ChatRoomDefinition,
+  options?: { query?: QueryOptions<"New" | "Exists"> },
+): QueryResult<"New" | "Exists"> {
   const runtime = useRuntime();
-  return useAsyncData(() => runtime.chat.registerRoom(room));
+  return useTruapiQuery(
+    () => queryKeys.chatRoom(room.roomId),
+    () => runtime.chat.registerRoom(room),
+    options,
+  );
 }
 
 /** Register a bot identity for posting into rooms. */
-export function useChatBot(bot: {
-  botId: string;
-  name: string;
-  icon: string;
-}): AsyncData<"New" | "Exists"> {
+export function useChatBot(
+  bot: { botId: string; name: string; icon: string },
+  options?: { query?: QueryOptions<"New" | "Exists"> },
+): QueryResult<"New" | "Exists"> {
   const runtime = useRuntime();
-  return useAsyncData(() => runtime.chat.registerBot(bot));
+  return useTruapiQuery(
+    () => queryKeys.chatBot(bot.botId),
+    () => runtime.chat.registerBot(bot),
+    options,
+  );
 }
 
 /** Rooms the product participates in, live. */
-export function useChatRooms(): {
-  rooms: ComputedRef<ChatRoom[]>;
-  error: ShallowRef<Error | undefined>;
-} {
+export function useChatRooms(options?: {
+  query?: QueryOptions<ChatRoom[]>;
+}): QueryResult<ChatRoom[]> {
   const runtime = useRuntime();
-  const { items, error } = useSubscriptionList<ChatRoom[]>(
-    (onValue, onError) => runtime.chat.watchRooms(onValue, onError),
-    [],
-    { limit: 1 },
-  );
-  return { rooms: computed(() => items.value[0] ?? []), error };
+  return useLiveQuery<ChatRoom[]>({
+    queryKey: () => queryKeys.chatRooms(),
+    attach: (onValue, onError) => runtime.chat.watchRooms(onValue, onError),
+    seed: () => [],
+    ...(options?.query !== undefined ? { query: options.query } : {}),
+  });
 }
 
 export interface ChatMessage {
@@ -56,12 +70,13 @@ export interface ChatMessage {
 /** Accumulated `MessagePosted` events for a room (bounded, newest last). */
 export function useChatMessages(
   roomId: MaybeGetter<string | undefined>,
-  options?: { limit?: number },
-): { messages: Ref<ChatMessage[]>; error: ShallowRef<Error | undefined>; clear: () => void } {
+  options?: { limit?: number; query?: QueryOptions<ChatMessage[]> },
+): LiveListQueryResult<ChatMessage> {
   const runtime = useRuntime();
   const getRoomId = toGetter(roomId);
-  const { items, error, clear } = useSubscriptionList<ChatMessage>(
-    (onValue, onError) =>
+  return useLiveListQuery<ChatMessage>({
+    queryKey: () => queryKeys.chatMessages(getRoomId() ?? null),
+    attach: (onValue, onError) =>
       runtime.chat.watchActions((action) => {
         const target = getRoomId();
         if (action.payload.tag !== "MessagePosted") return;
@@ -73,10 +88,10 @@ export function useChatMessages(
           receivedAt: Date.now(),
         });
       }, onError),
-    [getRoomId],
-    { limit: options?.limit ?? 200, enabled: () => getRoomId() !== undefined },
-  );
-  return { messages: items, error, clear };
+    limit: options?.limit ?? 200,
+    enabled: () => getRoomId() !== undefined,
+    ...(options?.query !== undefined ? { query: options.query } : {}),
+  });
 }
 
 /** Raw action stream (messages, button triggers, commands). */
@@ -97,18 +112,23 @@ export function useChatActions(
   );
 }
 
-/** Send into a room; a plain string becomes a Text message. */
+export interface SendChatMessageVariables {
+  /** Plain strings become Text messages. */
+  content: ChatMessageContent | string;
+  /** Overrides the roomId given to the composable. */
+  roomId?: string;
+}
+
+/** Send into a room: `mutate({ content: "hi" })`. */
 export function useSendChatMessage(
   roomId?: MaybeGetter<string | undefined>,
-): AsyncAction<
-  [content: ChatMessageContent | string, roomIdOverride?: string],
-  { messageId: string }
-> {
+  options?: { mutation?: MutationOptions<{ messageId: string }, SendChatMessageVariables> },
+): MutationResult<{ messageId: string }, SendChatMessageVariables> {
   const runtime = useRuntime();
   const getRoomId = toGetter(roomId ?? (() => undefined));
-  return useAsyncAction((content: ChatMessageContent | string, roomIdOverride?: string) => {
+  return useTruapiMutation(({ content, roomId: roomIdOverride }: SendChatMessageVariables) => {
     const target = roomIdOverride ?? getRoomId();
     if (!target) throw new Error("use-truapi: no roomId given to useSendChatMessage");
     return runtime.chat.send(target, content);
-  });
+  }, options?.mutation);
 }
