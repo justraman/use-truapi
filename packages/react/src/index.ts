@@ -1,12 +1,13 @@
 export {
   TruapiProvider,
+  createTruapiQueryClient,
   useRuntime,
   type ChainKey,
   type Register,
   type ResolvedChains,
   type TruapiProviderProps,
 } from "./context";
-export type { AsyncAction, AsyncData, WatchState } from "./internal";
+export type { LiveListQueryResult, MutationOptions, QueryOptions } from "./internal";
 
 export * from "./hooks/host";
 export * from "./hooks/chain";
@@ -24,6 +25,8 @@ export * from "./hooks/format";
 export {
   defineConfig,
   createRuntime,
+  queryKeys,
+  toKeyPart,
   formatBalance,
   formatPlanck,
   parseToPlanck,

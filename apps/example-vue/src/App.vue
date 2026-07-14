@@ -35,7 +35,7 @@ const isHost = useIsHost();
 interface NoteStatement {
   text: string;
 }
-const { statements, error: statementsError } = useStatements<NoteStatement>({
+const { data: statements, error: statementsError } = useStatements<NoteStatement>({
   enabled: () => isHost.value,
 });
 const publish = usePublishStatement<NoteStatement>();
@@ -50,7 +50,7 @@ function onSelect(event: Event) {
 }
 
 function onPublish() {
-  void publish.run({ text: statementDraft.value }).catch(() => {});
+  void publish.mutateAsync({ data: { text: statementDraft.value } }).catch(() => {});
 }
 </script>
 
@@ -120,7 +120,7 @@ function onPublish() {
       <p v-if="!isHost" data-testid="statements-unavailable">host only</p>
       <template v-else>
         <ul data-testid="statements">
-          <li v-for="(statement, i) in statements" :key="`${statement.signerHex ?? 'anon'}-${i}`">
+          <li v-for="(statement, i) in statements ?? []" :key="`${statement.signerHex ?? 'anon'}-${i}`">
             {{ statement.data.text }}
           </li>
         </ul>

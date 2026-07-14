@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientContext, QueryClientProvider } from "@tanstack/react-query";
 import {
   type AnyChains,
   type TruapiConfig,
@@ -27,16 +28,34 @@ export type ChainKey = keyof ResolvedChains & string;
 
 const RuntimeContext = createContext<TruapiRuntime | null>(null);
 
+/** Defaults applied when `TruapiProvider` creates its own QueryClient. */
+export function createTruapiQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: {
+      // Chain reads stay fresh for a few seconds so remounts and duplicate
+      // hooks don't hammer the RPC; override per hook via `query.staleTime`
+      // or bring your own QueryClient.
+      queries: { staleTime: 5_000 },
+    },
+  });
+}
+
 export interface TruapiProviderProps {
   // biome-ignore lint/suspicious/noExplicitAny: TruapiConfig/TruapiRuntime are invariant in their chain map; `any` accepts every concrete config
   config?: TruapiConfig<any>;
   /** Pass a pre-built runtime instead of `config` to control its lifecycle yourself. */
   // biome-ignore lint/suspicious/noExplicitAny: see above
   runtime?: TruapiRuntime<any>;
+  /**
+   * TanStack QueryClient to use. Defaults to the app's own client when the
+   * provider is rendered under a `QueryClientProvider`, otherwise a client
+   * with use-truapi defaults is created and provided for you.
+   */
+  queryClient?: QueryClient;
   children?: ReactNode;
 }
 
-export function TruapiProvider({ config, runtime, children }: TruapiProviderProps) {
+export function TruapiProvider({ config, runtime, queryClient, children }: TruapiProviderProps) {
   const owned = useRef<TruapiRuntime | null>(null);
   if (!runtime && !owned.current) {
     if (!config) throw new Error("use-truapi: TruapiProvider needs a `config` or a `runtime`");
@@ -47,7 +66,19 @@ export function TruapiProvider({ config, runtime, children }: TruapiProviderProp
   // it mid-app. Pass `runtime` to own teardown explicitly.
   const value = runtime ?? owned.current;
 
-  return createElement(RuntimeContext.Provider, { value }, children);
+  const inherited = useContext(QueryClientContext);
+  const ownedClient = useRef<QueryClient | null>(null);
+  const tree = createElement(RuntimeContext.Provider, { value }, children);
+
+  // Reuse the app's QueryClient when one is already provided (shared cache
+  // and devtools) unless the caller overrides it explicitly.
+  if (inherited && !queryClient) return tree;
+  let client = queryClient;
+  if (!client) {
+    if (!ownedClient.current) ownedClient.current = createTruapiQueryClient();
+    client = ownedClient.current;
+  }
+  return createElement(QueryClientProvider, { client }, tree);
 }
 
 export function useRuntime(): TruapiRuntime<ResolvedChains> {

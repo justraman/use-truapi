@@ -1,52 +1,54 @@
-import {
-  type AnyBatchCall,
-  type AnyTx,
-  type BatchMode,
-  type SubmitOptions,
-  type TxPhase,
-  type TxResult,
-  type TypedApiOf,
-  toError,
+import type {
+  AnyBatchCall,
+  AnyTx,
+  BatchMode,
+  SubmitOptions,
+  TxPhase,
+  TxResult,
+  TypedApiOf,
 } from "@use-truapi/core";
-import { type ComputedRef, type Ref, type ShallowRef, computed, ref, shallowRef } from "vue";
+import { type Ref, ref } from "vue";
 import { type ChainKey, type ResolvedChains, useRuntime } from "../context";
+import { type MutationOptions, type MutationResult, useTruapiMutation } from "../internal";
 
-export interface UseTxResult<K extends ChainKey> {
+export interface TxVariables<K extends ChainKey, TBuild, TOptions> {
+  build: (api: TypedApiOf<ResolvedChains, K>) => TBuild | Promise<TBuild>;
+  options?: TOptions;
+}
+
+export type UseTxResult<K extends ChainKey> = Omit<
+  MutationResult<TxResult, TxVariables<K, AnyTx, SubmitOptions>>,
+  "reset"
+> & {
+  /**
+   * Build against the typed api and submit; resolves when the tx reaches
+   * best-block (or `waitFor: "finalized"`). Sugar for `mutateAsync`.
+   */
   submit: (
     build: (api: TypedApiOf<ResolvedChains, K>) => AnyTx | Promise<AnyTx>,
     options?: SubmitOptions,
   ) => Promise<TxResult>;
   /** "idle" → "signing" → "broadcasting" → "in-block" → "finalized" | "error". */
   phase: Ref<TxPhase>;
-  result: ShallowRef<TxResult | undefined>;
-  error: ShallowRef<Error | undefined>;
-  isPending: ComputedRef<boolean>;
   reset: () => void;
-}
+};
 
 /**
- * Transaction lifecycle as reactive state. Permission (`ChainSubmit`) and
- * signer connection are handled automatically on first submit.
+ * Transaction lifecycle as a TanStack mutation with a granular `phase`.
+ * Permission (`ChainSubmit`) and signer connection are handled automatically
+ * on first submit.
  */
-export function useTx<K extends ChainKey = ChainKey>(options?: { chain?: K }): UseTxResult<K> {
+export function useTx<K extends ChainKey = ChainKey>(options?: {
+  chain?: K;
+  mutation?: MutationOptions<TxResult, TxVariables<K, AnyTx, SubmitOptions>>;
+}): UseTxResult<K> {
   const runtime = useRuntime();
   const phase = ref<TxPhase>("idle");
-  const result = shallowRef<TxResult | undefined>(undefined);
-  const error = shallowRef<Error | undefined>(undefined);
   const chain = options?.chain;
 
-  return {
-    phase,
-    result,
-    error,
-    isPending: computed(
-      () =>
-        phase.value === "signing" || phase.value === "broadcasting" || phase.value === "in-block",
-    ),
-    submit: async (build, submitOptions) => {
+  const mutation = useTruapiMutation<TxVariables<K, AnyTx, SubmitOptions>, TxResult>(
+    async ({ build, options: submitOptions }) => {
       phase.value = "signing";
-      result.value = undefined;
-      error.value = undefined;
       try {
         const txResult = await runtime.tx.submit(build as never, {
           ...submitOptions,
@@ -56,7 +58,6 @@ export function useTx<K extends ChainKey = ChainKey>(options?: { chain?: K }): U
             submitOptions?.onStatus?.(status);
           },
         });
-        result.value = txResult;
         phase.value = txResult.ok
           ? submitOptions?.waitFor === "finalized"
             ? "finalized"
@@ -64,74 +65,85 @@ export function useTx<K extends ChainKey = ChainKey>(options?: { chain?: K }): U
           : "error";
         return txResult;
       } catch (e) {
-        error.value = toError(e);
         phase.value = "error";
         throw e;
       }
     },
+    options?.mutation,
+  );
+
+  return Object.assign({}, mutation, {
+    phase,
+    submit: (
+      build: (api: TypedApiOf<ResolvedChains, K>) => AnyTx | Promise<AnyTx>,
+      submitOptions?: SubmitOptions,
+    ) => mutation.mutateAsync({ build, options: submitOptions }),
     reset: () => {
+      mutation.reset();
       phase.value = "idle";
-      result.value = undefined;
-      error.value = undefined;
     },
-  };
+  }) as UseTxResult<K>;
 }
 
-export interface UseBatchTxResult<K extends ChainKey> extends Omit<UseTxResult<K>, "submit"> {
+export type UseBatchTxResult<K extends ChainKey> = Omit<
+  MutationResult<TxResult, TxVariables<K, AnyBatchCall[], SubmitOptions & { mode?: BatchMode }>>,
+  "reset"
+> & {
   submit: (
     build: (api: TypedApiOf<ResolvedChains, K>) => AnyBatchCall[] | Promise<AnyBatchCall[]>,
     options?: SubmitOptions & { mode?: BatchMode },
   ) => Promise<TxResult>;
-}
+  phase: Ref<TxPhase>;
+  reset: () => void;
+};
 
 /** Like `useTx` but wraps the built calls in `Utility.batch_all` (atomic by default). */
 export function useBatchTx<K extends ChainKey = ChainKey>(options?: {
   chain?: K;
+  mutation?: MutationOptions<
+    TxResult,
+    TxVariables<K, AnyBatchCall[], SubmitOptions & { mode?: BatchMode }>
+  >;
 }): UseBatchTxResult<K> {
   const runtime = useRuntime();
   const phase = ref<TxPhase>("idle");
-  const result = shallowRef<TxResult | undefined>(undefined);
-  const error = shallowRef<Error | undefined>(undefined);
   const chain = options?.chain;
 
-  return {
+  const mutation = useTruapiMutation<
+    TxVariables<K, AnyBatchCall[], SubmitOptions & { mode?: BatchMode }>,
+    TxResult
+  >(async ({ build, options: submitOptions }) => {
+    phase.value = "signing";
+    try {
+      const txResult = await runtime.tx.submitBatch(build as never, {
+        ...submitOptions,
+        ...(chain !== undefined ? { chain } : {}),
+        onStatus: (status) => {
+          phase.value = status;
+          submitOptions?.onStatus?.(status);
+        },
+      });
+      phase.value = txResult.ok
+        ? submitOptions?.waitFor === "finalized"
+          ? "finalized"
+          : "in-block"
+        : "error";
+      return txResult;
+    } catch (e) {
+      phase.value = "error";
+      throw e;
+    }
+  }, options?.mutation);
+
+  return Object.assign({}, mutation, {
     phase,
-    result,
-    error,
-    isPending: computed(
-      () =>
-        phase.value === "signing" || phase.value === "broadcasting" || phase.value === "in-block",
-    ),
-    submit: async (build, submitOptions) => {
-      phase.value = "signing";
-      result.value = undefined;
-      error.value = undefined;
-      try {
-        const txResult = await runtime.tx.submitBatch(build as never, {
-          ...submitOptions,
-          ...(chain !== undefined ? { chain } : {}),
-          onStatus: (status) => {
-            phase.value = status;
-            submitOptions?.onStatus?.(status);
-          },
-        });
-        result.value = txResult;
-        phase.value = txResult.ok
-          ? submitOptions?.waitFor === "finalized"
-            ? "finalized"
-            : "in-block"
-          : "error";
-        return txResult;
-      } catch (e) {
-        error.value = toError(e);
-        phase.value = "error";
-        throw e;
-      }
-    },
+    submit: (
+      build: (api: TypedApiOf<ResolvedChains, K>) => AnyBatchCall[] | Promise<AnyBatchCall[]>,
+      submitOptions?: SubmitOptions & { mode?: BatchMode },
+    ) => mutation.mutateAsync({ build, options: submitOptions }),
     reset: () => {
+      mutation.reset();
       phase.value = "idle";
-      result.value = undefined;
-      error.value = undefined;
     },
-  };
+  }) as UseBatchTxResult<K>;
 }

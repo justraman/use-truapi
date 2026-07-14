@@ -8,7 +8,14 @@
     "url": "https://github.com/use-truapi/use-truapi.git",
     "directory": "packages/vue"
   },
-  "keywords": ["vue", "composables", "polkadot", "truapi", "product-sdk", "web3"],
+  "keywords": [
+    "vue",
+    "composables",
+    "polkadot",
+    "truapi",
+    "product-sdk",
+    "web3"
+  ],
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -20,7 +27,9 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "publishConfig": {
     "access": "public"
@@ -35,12 +44,14 @@
     "@use-truapi/core": "workspace:*"
   },
   "peerDependencies": {
+    "@tanstack/vue-query": "^5",
     "vue": ">=3.4"
   },
   "devDependencies": {
-    "polkadot-api": "^2.1.6",
+    "@tanstack/vue-query": "^5",
     "@vue/test-utils": "^2.4.6",
     "jsdom": "^26.1.0",
+    "polkadot-api": "^2.1.6",
     "tsup": "^8.5.0",
     "vitest": "^3.2.4",
     "vue": "^3.5.17"

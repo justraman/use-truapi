@@ -29,6 +29,15 @@ CI + tag-triggered npm release with provenance.
 Capabilities that exist in the SDK but have no hook yet, plus DX debt found
 while building v0.1.
 
+- [x] **TanStack Query rebuild** — every read/subscription hook is a
+      `useQuery` result and every action a `useMutation` (peer dep on
+      `@tanstack/react-query` / `@tanstack/vue-query` v5). Consumers get cache
+      strategies (`staleTime`, `gcTime`, `refetchInterval`, …) via a
+      `query`/`mutation` passthrough on every hook, documented `queryKeys` for
+      invalidation/prefetching, devtools visibility, and QueryClient reuse
+      when the app already provides one. Breaking: `run` → `mutate`,
+      `isLoading` → `isPending`, list hooks return `data` (see README
+      migration notes)
 - [ ] **Preimage hooks** — `usePreimage(key)` (host lookup subscription) and
       `useSubmitPreimage()`; the only truapi namespace with no coverage today
 - [ ] **Keys hooks** — expose `@parity/product-sdk-keys`: `useKeyManager()`
@@ -45,8 +54,9 @@ while building v0.1.
 - [ ] **Auto re-subscribe on host interrupt** — theme already falls back; chat,
       payments and statement subscriptions currently just surface the error.
       Add bounded retry with backoff (reuse `withRetry` from product-sdk-tx)
-- [ ] **Query dedup** — `useChainQuery`/`useBalance` mounted twice currently
-      issue two reads; share in-flight promises per (chain, query-key) in core
+- [x] **Query dedup** — shipped with the TanStack Query rebuild: reads dedupe
+      through the query cache, and live hooks share one host subscription per
+      query key via a refcounted registry in core
 - [ ] **`useChainSpec` / token metadata helper** — auto-feed `decimals`/`symbol`
       from the host chain spec into `useFormattedBalance`
 - [ ] Example apps: add a chat + statements demo page that actually exercises

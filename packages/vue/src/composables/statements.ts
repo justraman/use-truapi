@@ -1,72 +1,62 @@
-import { type PublishOptions, type ReceivedStatement, toError } from "@use-truapi/core";
-import { type Ref, type ShallowRef, onScopeDispose, ref, shallowRef, watch as vueWatch } from "vue";
+import { type PublishOptions, type ReceivedStatement, queryKeys } from "@use-truapi/core";
+import { type Ref, onScopeDispose, ref } from "vue";
 import { useRuntime } from "../context";
-import { type AsyncAction, type MaybeGetter, toGetter, useAsyncAction } from "../internal";
+import {
+  type LiveListQueryResult,
+  type MaybeGetter,
+  type MutationOptions,
+  type MutationResult,
+  type QueryOptions,
+  toGetter,
+  useLiveListQuery,
+  useTruapiMutation,
+} from "../internal";
 
 /**
  * Live statements matching the app topic (and optional `topic2`), accumulated
- * newest-last. Empty and inert standalone.
+ * newest-last in the query cache. Empty and inert standalone.
  */
 export function useStatements<T>(options?: {
   topic2?: MaybeGetter<string | undefined>;
   limit?: number;
   enabled?: MaybeGetter<boolean>;
-}): {
-  statements: Ref<ReceivedStatement<T>[]>;
-  error: ShallowRef<Error | undefined>;
-  clear: () => void;
-} {
+  query?: QueryOptions<ReceivedStatement<T>[]>;
+}): LiveListQueryResult<ReceivedStatement<T>> {
   const runtime = useRuntime();
-  const statements = ref<ReceivedStatement<T>[]>([]) as Ref<ReceivedStatement<T>[]>;
-  const error = shallowRef<Error | undefined>(undefined);
-  const limit = options?.limit ?? 500;
   const getTopic2 = toGetter(options?.topic2 ?? (() => undefined));
-  const enabled = toGetter(options?.enabled ?? true);
-
-  vueWatch(
-    [getTopic2, enabled],
-    (_next, _prev, onCleanup) => {
-      statements.value = [];
-      error.value = undefined;
-      if (!enabled()) return;
+  return useLiveListQuery<ReceivedStatement<T>>({
+    queryKey: () => queryKeys.statements(getTopic2() ?? null),
+    attach: (onValue, onError) => {
       const topic2 = getTopic2();
-      onCleanup(
-        runtime.statements.subscribe<T>(
-          (statement) => {
-            statements.value = [...statements.value.slice(-(limit - 1)), statement];
-          },
-          {
-            ...(topic2 !== undefined ? { topic2 } : {}),
-            onError: (e) => {
-              error.value = toError(e);
-            },
-          },
-        ),
-      );
+      return runtime.statements.subscribe<T>(onValue, {
+        ...(topic2 !== undefined ? { topic2 } : {}),
+        onError,
+      });
     },
-    { immediate: true },
-  );
+    limit: options?.limit ?? 500,
+    enabled: options?.enabled ?? true,
+    ...(options?.query !== undefined ? { query: options.query } : {}),
+  });
+}
 
-  return {
-    statements,
-    error,
-    clear: () => {
-      statements.value = [];
-    },
-  };
+export interface PublishStatementVariables<T> {
+  data: T;
+  options?: PublishOptions;
 }
 
 /**
- * Publish JSON payloads (≤512 bytes) to the app topic. Resolves `false` when
- * the store rejects the statement or the app runs standalone.
+ * Publish JSON payloads (≤512 bytes) to the app topic:
+ * `mutate({ data })`. Resolves `false` when the store rejects the statement
+ * or the app runs standalone.
  */
-export function usePublishStatement<T = unknown>(): AsyncAction<
-  [data: T, options?: PublishOptions],
-  boolean
-> {
+export function usePublishStatement<T = unknown>(options?: {
+  mutation?: MutationOptions<boolean, PublishStatementVariables<T>>;
+}): MutationResult<boolean, PublishStatementVariables<T>> {
   const runtime = useRuntime();
-  return useAsyncAction((data: T, options?: PublishOptions) =>
-    runtime.statements.publish(data, options),
+  return useTruapiMutation(
+    ({ data, options: publishOptions }: PublishStatementVariables<T>) =>
+      runtime.statements.publish(data, publishOptions),
+    options?.mutation,
   );
 }
 

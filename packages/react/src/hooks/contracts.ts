@@ -1,11 +1,44 @@
-import type { AbiEntry, CdmJson, Contract, ContractDef, TxResult } from "@use-truapi/core";
+import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import {
+  type AbiEntry,
+  type CdmJson,
+  type Contract,
+  type ContractDef,
+  type TxResult,
+  queryKeys,
+  resolveChain,
+} from "@use-truapi/core";
 import { type ChainKey, useRuntime } from "../context";
-import { type AsyncAction, type AsyncData, useAsyncAction, useAsyncData } from "../internal";
+import {
+  type MutationOptions,
+  type OptionalVariables,
+  type QueryOptions,
+  useTruapiMutation,
+  useTruapiQuery,
+} from "../internal";
 
 export interface ContractScope<K extends ChainKey = ChainKey> {
   chain?: K;
   /** Resolve addresses from the live CDM registry instead of the manifest snapshot. */
   live?: boolean;
+}
+
+// Query keys need a serializable identity for manifests and contract handles;
+// a per-object id is stable for the session, which is all a cache key needs.
+const weakIds = new WeakMap<object, number>();
+let nextWeakId = 1;
+function weakId(value: object): string {
+  let id = weakIds.get(value);
+  if (id === undefined) {
+    id = nextWeakId++;
+    weakIds.set(value, id);
+  }
+  return `#${id}`;
+}
+
+function manifestKey(cdmJson: CdmJson): string {
+  const name = (cdmJson as { name?: unknown }).name;
+  return typeof name === "string" ? name : weakId(cdmJson);
 }
 
 /**
@@ -15,12 +48,14 @@ export interface ContractScope<K extends ChainKey = ChainKey> {
 export function useContract(
   cdmJson: CdmJson,
   library: string,
-  options?: ContractScope,
-): AsyncData<Contract<ContractDef>> {
+  options?: ContractScope & { query?: QueryOptions<Contract<ContractDef>> },
+): UseQueryResult<Contract<ContractDef>, Error> {
   const runtime = useRuntime();
-  return useAsyncData(
+  const chainKey = resolveChain(runtime.config, options?.chain).key;
+  return useTruapiQuery(
+    queryKeys.contract(chainKey, manifestKey(cdmJson), library, options?.live ?? false),
     () => runtime.contracts.getContract(cdmJson, library, options),
-    [runtime, cdmJson, library, options?.chain, options?.live],
+    options,
   );
 }
 
@@ -28,17 +63,23 @@ export function useContract(
 export function useContractAt(
   address: `0x${string}` | undefined,
   abi: AbiEntry[],
-  options?: { chain?: ChainKey },
-): AsyncData<Contract<ContractDef>> {
+  options?: { chain?: ChainKey; query?: QueryOptions<Contract<ContractDef>> },
+): UseQueryResult<Contract<ContractDef>, Error> {
   const runtime = useRuntime();
-  return useAsyncData(async () => {
-    if (!address) throw new Error("use-truapi: useContractAt needs an address");
-    return runtime.contracts.getContractAt(address, abi, options);
-  }, [runtime, address, abi, options?.chain]);
+  const chainKey = resolveChain(runtime.config, options?.chain).key;
+  return useTruapiQuery(
+    queryKeys.contractAt(chainKey, address ?? null),
+    async () => {
+      if (!address) throw new Error("use-truapi: useContractAt needs an address");
+      return runtime.contracts.getContractAt(address, abi, options);
+    },
+    { ...options, enabled: address !== undefined },
+  );
 }
 
 /**
- * Read-only contract call (`ReviveApi.call` dry-run) — re-runs when args change.
+ * Read-only contract call (`ReviveApi.call` dry-run) — cached under the
+ * contract identity, method and args.
  *
  * ```ts
  * const count = useContractQuery(contract, "getCount", []);
@@ -48,20 +89,26 @@ export function useContractQuery<T = unknown>(
   contract: Contract<ContractDef> | undefined,
   method: string,
   args: readonly unknown[],
-  options?: { enabled?: boolean },
-): AsyncData<T> {
-  return useAsyncData(async () => {
-    if (!contract || options?.enabled === false) return undefined as T;
-    const handle = (contract as Record<string, { query: (...a: unknown[]) => Promise<unknown> }>)[
-      method
-    ];
-    if (!handle) throw new Error(`use-truapi: contract has no method "${method}"`);
-    const result = (await handle.query(...args)) as { success: boolean; value: unknown };
-    if (!result.success) {
-      throw new Error(`use-truapi: contract query "${method}" reverted`, { cause: result.value });
-    }
-    return result.value as T;
-  }, [contract, method, options?.enabled, JSON.stringify(args, jsonBigint)]);
+  options?: { enabled?: boolean; query?: QueryOptions<T> },
+): UseQueryResult<T, Error> {
+  return useTruapiQuery<T>(
+    queryKeys.contractQuery(contract ? weakId(contract) : null, method, args),
+    async () => {
+      if (!contract) throw new Error("use-truapi: contract not ready");
+      const handle = (contract as Record<string, { query: (...a: unknown[]) => Promise<unknown> }>)[
+        method
+      ];
+      if (!handle) throw new Error(`use-truapi: contract has no method "${method}"`);
+      const result = (await handle.query(...args)) as { success: boolean; value: unknown };
+      if (!result.success) {
+        throw new Error(`use-truapi: contract query "${method}" reverted`, {
+          cause: result.value,
+        });
+      }
+      return result.value as T;
+    },
+    { ...options, enabled: contract !== undefined && (options?.enabled ?? true) },
+  );
 }
 
 /**
@@ -69,32 +116,32 @@ export function useContractQuery<T = unknown>(
  *
  * ```ts
  * const increment = useContractTx(contract, "increment");
- * await increment.run();
+ * await increment.mutateAsync([]);
  * ```
  */
 export function useContractTx(
   contract: Contract<ContractDef> | undefined,
   method: string,
-): AsyncAction<unknown[], TxResult> {
-  return useAsyncAction(async (...args: unknown[]) => {
+  options?: { mutation?: MutationOptions<TxResult, OptionalVariables<readonly unknown[]>> },
+): UseMutationResult<TxResult, Error, OptionalVariables<readonly unknown[]>> {
+  return useTruapiMutation(async (args: OptionalVariables<readonly unknown[]>) => {
     if (!contract) throw new Error("use-truapi: contract not ready");
     const handle = (contract as Record<string, { tx: (...a: unknown[]) => Promise<TxResult> }>)[
       method
     ];
     if (!handle) throw new Error(`use-truapi: contract has no method "${method}"`);
-    return handle.tx(...args);
-  });
+    return handle.tx(...(args ?? []));
+  }, options?.mutation);
 }
 
 /** Idempotent pallet-revive account mapping — required once before contract txs. */
 export function useEnsureAccountMapped(
   cdmJson: CdmJson,
-  options?: { chain?: ChainKey },
-): AsyncAction<[], void> {
+  options?: { chain?: ChainKey; mutation?: MutationOptions<void, void> },
+): UseMutationResult<void, Error, void> {
   const runtime = useRuntime();
-  return useAsyncAction(() => runtime.contracts.ensureMapped(cdmJson, options));
-}
-
-function jsonBigint(_key: string, value: unknown): unknown {
-  return typeof value === "bigint" ? value.toString() : value;
+  return useTruapiMutation(
+    () => runtime.contracts.ensureMapped(cdmJson, options),
+    options?.mutation,
+  );
 }

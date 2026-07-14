@@ -1,13 +1,21 @@
 export {
   RUNTIME_KEY,
   TruapiPlugin,
+  createTruapiQueryClient,
   useRuntime,
   type ChainKey,
   type Register,
   type ResolvedChains,
   type TruapiPluginOptions,
 } from "./context";
-export type { AsyncAction, AsyncData, MaybeGetter, WatchState } from "./internal";
+export type {
+  LiveListQueryResult,
+  MaybeGetter,
+  MutationOptions,
+  MutationResult,
+  QueryOptions,
+  QueryResult,
+} from "./internal";
 
 export * from "./composables/host";
 export * from "./composables/chain";
@@ -25,6 +33,8 @@ export * from "./composables/format";
 export {
   defineConfig,
   createRuntime,
+  queryKeys,
+  toKeyPart,
   formatBalance,
   formatPlanck,
   parseToPlanck,
