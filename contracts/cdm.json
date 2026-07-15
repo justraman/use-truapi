@@ -1,0 +1,76 @@
+{
+  "dependencies": {
+    "@use-truapi/counter": "latest"
+  },
+  "contracts": {
+    "@use-truapi/counter": {
+      "version": 1,
+      "address": "0x5cc9CAa3f241e02c63c4B0431DB1239Bc0649CC1",
+      "abi": [
+        {
+          "inputs": [],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "getCount",
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint64"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "increment",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "name": "value",
+              "type": "uint64"
+            }
+          ],
+          "name": "add",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidCalldata",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "CalldataTooLarge",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NoSelector",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "UnknownSelector",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NonPayableValueReceived",
+          "type": "error"
+        }
+      ],
+      "metadataCid": "bafk2bzacec6z3mccup3ab65aseep5l6mae5rm4vd4vqfiz34u6rfaqli2ba36"
+    }
+  },
+  "registry": "0x7671a84f5e7b1bf704f0ad3f43a185ff3d4b303f"
+}

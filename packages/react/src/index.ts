@@ -46,8 +46,12 @@ export {
   ContractRevertedError,
 } from "@use-truapi/core";
 export type {
+  AbiEntry,
   AnyChains,
+  CdmJson,
   ChainConfig,
+  Contract,
+  ContractDef,
   SignerAccount,
   SignerState,
   TruapiConfig,

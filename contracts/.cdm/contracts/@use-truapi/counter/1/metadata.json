@@ -1,0 +1,74 @@
+{
+  "publish_block": 0,
+  "published_at": "2026-07-14T20:31:46.063Z",
+  "description": "Minimal counter contract backing the use-truapi example apps",
+  "readme": "",
+  "authors": [
+    "use-truapi"
+  ],
+  "homepage": "https://github.com/paritytech/use-truapi",
+  "repository": "https://github.com/justraman/use-truapi",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "getCount",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "increment",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "name": "value",
+          "type": "uint64"
+        }
+      ],
+      "name": "add",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidCalldata",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CalldataTooLarge",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NoSelector",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "UnknownSelector",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NonPayableValueReceived",
+      "type": "error"
+    }
+  ]
+}
