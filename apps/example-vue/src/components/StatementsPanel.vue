@@ -7,6 +7,8 @@ import {
   useStatements,
 } from "@use-truapi/vue";
 import { ref } from "vue";
+import HookRow from "./HookRow.vue";
+import UiCard from "./UiCard.vue";
 
 interface NoteStatement {
   text: string;
@@ -27,6 +29,8 @@ const publish = usePublishStatement<NoteStatement>();
 const presence = useStatementChannel<PresenceValue>({ topic2: "presence" });
 const draft = ref("");
 
+const DESC = "Ephemeral broadcast messages on the statement store.";
+
 function onPublish() {
   void publish.publish({ text: draft.value }).catch(() => {});
 }
@@ -40,16 +44,20 @@ function onPresence() {
 </script>
 
 <template>
-  <section class="panel">
-    <h2>Statements</h2>
-    <p v-if="!isHost" data-testid="statements-unavailable">host only</p>
+  <UiCard title="Statements" :desc="DESC">
+    <HookRow v-if="!isHost" :hook="['useStatements', 'usePublishStatement', 'useStatementChannel']">
+      <span class="muted" data-testid="statements-unavailable">host only</span>
+    </HookRow>
     <template v-else>
-      <ul data-testid="statements">
-        <li v-for="(statement, i) in statements ?? []" :key="`${statement.signerHex ?? 'anon'}-${i}`">
-          {{ statement.data.text }}
-        </li>
-      </ul>
-      <div class="row">
+      <HookRow hook="useStatements">
+        <span v-if="(statements ?? []).length === 0" class="muted">no statements yet</span>
+        <ul v-else class="list" data-testid="statements">
+          <li v-for="(statement, i) in statements ?? []" :key="`${statement.signerHex ?? 'anon'}-${i}`">
+            {{ statement.data.text }}
+          </li>
+        </ul>
+      </HookRow>
+      <HookRow hook="usePublishStatement">
         <input data-testid="statement-input" v-model="draft" placeholder="Broadcast a message" />
         <button
           type="button"
@@ -59,8 +67,8 @@ function onPresence() {
         >
           Publish
         </button>
-      </div>
-      <div class="row">
+      </HookRow>
+      <HookRow hook="useStatementChannel">
         <button type="button" data-testid="presence-write" :disabled="!presence.ready.value" @click="onPresence">
           I'm here
         </button>
@@ -68,8 +76,8 @@ function onPresence() {
           presence: {{ presence.values.value.size }} peer{{ presence.values.value.size === 1 ? "" : "s" }}
         </span>
         <span v-if="!presence.ready.value" class="muted">channel connecting…</span>
-      </div>
+      </HookRow>
       <p v-if="error" class="error">{{ error.message }}</p>
     </template>
-  </section>
+  </UiCard>
 </template>

@@ -9,7 +9,7 @@ import {
   useSigner,
   useUserId,
 } from "@use-truapi/react";
-import { badge, errorText, heading, hexPreview, muted, panel, row } from "../ui";
+import { Card, HookRow, hexPreview } from "../ui";
 
 export function AccountsPanel() {
   const { accounts, selectedAccount, isConnected, isConnecting, error, select } = useAccounts();
@@ -21,46 +21,67 @@ export function AccountsPanel() {
   const login = useLogin();
   const signRaw = useSignRaw();
 
+  const firstError = error ?? connect.error ?? login.error ?? signRaw.error;
+
   return (
-    <section style={panel}>
-      <h2 style={heading}>Account</h2>
-      {isConnected ? (
-        <div style={row}>
-          <select
-            data-testid="account-select"
-            value={selectedAccount?.address ?? ""}
-            onChange={(e) => select(e.target.value)}
-          >
-            {accounts.map((account) => (
-              <option key={account.address} value={account.address}>
-                {account.name ?? truncateAddress(account.address)}
-              </option>
-            ))}
-          </select>
-          {selected && (
-            <code data-testid="selected-account">{truncateAddress(selected.address)}</code>
-          )}
-          <span style={badge} data-testid="signer-status">
-            signer: {signer ? "ready" : "none"}
-          </span>
+    <Card title="Accounts" desc="Wallet connection, account selection and signing.">
+      <HookRow hook={["useConnect", "useDisconnect"]}>
+        {isConnected ? (
           <button type="button" onClick={disconnect}>
             Disconnect
           </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          data-testid="connect"
-          disabled={isConnecting || connect.isPending}
-          onClick={() => void connect.connect().catch(() => {})}
-        >
-          {isConnecting || connect.isPending ? "Connecting…" : "Connect"}
-        </button>
-      )}
-      <div style={{ ...row, marginTop: 8 }}>
-        <span style={badge} data-testid="user-id">
+        ) : (
+          <button
+            type="button"
+            className="primary"
+            data-testid="connect"
+            disabled={isConnecting || connect.isPending}
+            onClick={() => void connect.connect().catch(() => {})}
+          >
+            {isConnecting || connect.isPending ? "Connecting…" : "Connect"}
+          </button>
+        )}
+      </HookRow>
+      <HookRow hook="useAccounts">
+        {isConnected ? (
+          <>
+            <select
+              data-testid="account-select"
+              value={selectedAccount?.address ?? ""}
+              onChange={(e) => select(e.target.value)}
+            >
+              {accounts.map((account) => (
+                <option key={account.address} value={account.address}>
+                  {account.name ?? truncateAddress(account.address)}
+                </option>
+              ))}
+            </select>
+            <span className="badge">
+              {accounts.length} account{accounts.length === 1 ? "" : "s"}
+            </span>
+          </>
+        ) : (
+          <span className="muted">connect to list accounts</span>
+        )}
+      </HookRow>
+      <HookRow hook="useSelectedAccount">
+        {selected ? (
+          <code data-testid="selected-account">{truncateAddress(selected.address)}</code>
+        ) : (
+          <span className="muted">no account selected</span>
+        )}
+      </HookRow>
+      <HookRow hook="useSigner">
+        <span className="badge" data-testid="signer-status">
+          signer: {signer ? "ready" : "none"}
+        </span>
+      </HookRow>
+      <HookRow hook="useUserId">
+        <span className="badge" data-testid="user-id">
           user: {userId.data ?? "—"}
         </span>
+      </HookRow>
+      <HookRow hook="useLogin">
         <button
           type="button"
           data-testid="login"
@@ -69,7 +90,9 @@ export function AccountsPanel() {
         >
           Login (RFC-0009)
         </button>
-        {login.data && <span style={muted}>login: {login.data}</span>}
+        {login.data && <span className="muted">login: {login.data}</span>}
+      </HookRow>
+      <HookRow hook="useSignRaw">
         <button
           type="button"
           data-testid="sign-raw"
@@ -81,10 +104,8 @@ export function AccountsPanel() {
           Sign message
         </button>
         {signRaw.data && <code data-testid="sign-raw-result">{hexPreview(signRaw.data)}</code>}
-      </div>
-      {(error ?? connect.error ?? login.error ?? signRaw.error) && (
-        <p style={errorText}>{(error ?? connect.error ?? login.error ?? signRaw.error)?.message}</p>
-      )}
-    </section>
+      </HookRow>
+      {firstError && <p className="error">{firstError.message}</p>}
+    </Card>
   );
 }

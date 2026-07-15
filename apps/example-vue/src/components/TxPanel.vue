@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useBatchTx, useTx } from "@use-truapi/vue";
 import { Binary } from "polkadot-api";
+import HookRow from "./HookRow.vue";
+import UiCard from "./UiCard.vue";
 
 const tx = useTx();
 const batch = useBatchTx();
@@ -22,9 +24,8 @@ function onBatch() {
 </script>
 
 <template>
-  <section class="panel">
-    <h2>Transactions</h2>
-    <div class="row">
+  <UiCard title="Transactions" desc="Sign and submit extrinsics, single or batched.">
+    <HookRow hook="useTx">
       <button type="button" data-testid="tx-remark" :disabled="tx.isPending.value" @click="onRemark">
         Submit remark
       </button>
@@ -32,8 +33,8 @@ function onBatch() {
       <span v-if="tx.data.value" class="muted" data-testid="tx-result">
         {{ tx.data.value.ok ? `in block #${tx.data.value.block.number}` : "dispatch failed" }}
       </span>
-    </div>
-    <div class="row">
+    </HookRow>
+    <HookRow hook="useBatchTx">
       <button type="button" data-testid="batch-remark" :disabled="batch.isPending.value" @click="onBatch">
         Submit batch (2 remarks)
       </button>
@@ -41,9 +42,9 @@ function onBatch() {
       <span v-if="batch.data.value" class="muted" data-testid="batch-result">
         {{ batch.data.value.ok ? `in block #${batch.data.value.block.number}` : "dispatch failed" }}
       </span>
-    </div>
+    </HookRow>
     <p v-if="tx.error.value ?? batch.error.value" class="error">
       {{ (tx.error.value ?? batch.error.value)?.message }}
     </p>
-  </section>
+  </UiCard>
 </template>

@@ -9,16 +9,21 @@ import {
   useTopUp,
 } from "@use-truapi/react";
 import { useState } from "react";
-import { badge, errorText, heading, muted, panel, row } from "../ui";
+import { Card, HookRow } from "../ui";
+
+const DESC = "RFC-0006 payments through the host purse.";
 
 export function PaymentsPanel() {
   const isHost = useIsHost();
   if (!isHost) {
     return (
-      <section style={panel}>
-        <h2 style={heading}>Payments</h2>
-        <p data-testid="payments-unavailable">host only</p>
-      </section>
+      <Card title="Payments" desc={DESC}>
+        <HookRow hook={["usePaymentBalance", "useTopUp", "useRequestPayment"]}>
+          <span className="muted" data-testid="payments-unavailable">
+            host only
+          </span>
+        </HookRow>
+      </Card>
     );
   }
   return <HostPayments />;
@@ -36,12 +41,13 @@ function HostPayments() {
   const error = balance.error ?? topUp.error ?? request.error ?? status.error;
 
   return (
-    <section style={panel}>
-      <h2 style={heading}>Payments (RFC-0006)</h2>
-      <div style={row}>
-        <span style={badge} data-testid="payment-balance">
+    <Card title="Payments" desc={DESC}>
+      <HookRow hook="usePaymentBalance">
+        <span className="badge" data-testid="payment-balance">
           purse: {available || "—"}
         </span>
+      </HookRow>
+      <HookRow hook="useTopUp">
         <button
           type="button"
           data-testid="payment-topup"
@@ -57,6 +63,8 @@ function HostPayments() {
         >
           Top up 0.1 PAS
         </button>
+      </HookRow>
+      <HookRow hook="useRequestPayment">
         <button
           type="button"
           data-testid="payment-request"
@@ -71,15 +79,19 @@ function HostPayments() {
         >
           Request 0.05 PAS to self
         </button>
-      </div>
-      {lastPaymentId && (
-        <p style={muted}>
-          Payment <code>{lastPaymentId}</code>:{" "}
-          <span data-testid="payment-status">{status.data?.tag ?? "…"}</span>
-          {status.data?.tag === "Failed" && ` (${status.data.value.reason})`}
-        </p>
-      )}
-      {error && <p style={errorText}>{error.message}</p>}
-    </section>
+      </HookRow>
+      <HookRow hook="usePaymentStatus">
+        {lastPaymentId ? (
+          <span className="muted">
+            payment <code>{lastPaymentId}</code>:{" "}
+            <span data-testid="payment-status">{status.data?.tag ?? "…"}</span>
+            {status.data?.tag === "Failed" && ` (${status.data.value.reason})`}
+          </span>
+        ) : (
+          <span className="muted">request a payment to watch its status</span>
+        )}
+      </HookRow>
+      {error && <p className="error">{error.message}</p>}
+    </Card>
   );
 }

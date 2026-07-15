@@ -9,6 +9,8 @@ import {
   useTopUp,
 } from "@use-truapi/vue";
 import { computed, ref } from "vue";
+import HookRow from "./HookRow.vue";
+import UiCard from "./UiCard.vue";
 
 const selected = useSelectedAccount();
 const balance = usePaymentBalance();
@@ -46,13 +48,16 @@ function onRequest() {
 </script>
 
 <template>
-  <section class="panel">
-    <h2>Payments (RFC-0006)</h2>
-    <div class="row">
+  <UiCard title="Payments" desc="RFC-0006 payments through the host purse.">
+    <HookRow hook="usePaymentBalance">
       <span class="badge" data-testid="payment-balance">purse: {{ available || "—" }}</span>
+    </HookRow>
+    <HookRow hook="useTopUp">
       <button type="button" data-testid="payment-topup" :disabled="topUp.isPending.value" @click="onTopUp">
         Top up 0.1 PAS
       </button>
+    </HookRow>
+    <HookRow hook="useRequestPayment">
       <button
         type="button"
         data-testid="payment-request"
@@ -61,13 +66,16 @@ function onRequest() {
       >
         Request 0.05 PAS to self
       </button>
-    </div>
-    <p v-if="lastPaymentId" class="muted">
-      Payment <code>{{ lastPaymentId }}</code
-      >:
-      <span data-testid="payment-status">{{ status.data.value?.tag ?? "…" }}</span>
-      <template v-if="status.data.value?.tag === 'Failed'"> ({{ status.data.value.value.reason }})</template>
-    </p>
+    </HookRow>
+    <HookRow hook="usePaymentStatus">
+      <span v-if="lastPaymentId" class="muted">
+        payment <code>{{ lastPaymentId }}</code
+        >:
+        <span data-testid="payment-status">{{ status.data.value?.tag ?? "…" }}</span>
+        <template v-if="status.data.value?.tag === 'Failed'"> ({{ status.data.value.value.reason }})</template>
+      </span>
+      <span v-else class="muted">request a payment to watch its status</span>
+    </HookRow>
     <p v-if="firstError" class="error">{{ firstError.message }}</p>
-  </section>
+  </UiCard>
 </template>

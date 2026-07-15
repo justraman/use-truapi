@@ -1,15 +1,14 @@
 import { useBatchTx, useTx } from "@use-truapi/react";
 import { Binary } from "polkadot-api";
-import { badge, errorText, heading, muted, panel, row } from "../ui";
+import { Card, HookRow } from "../ui";
 
 export function TxPanel() {
   const tx = useTx();
   const batch = useBatchTx();
 
   return (
-    <section style={panel}>
-      <h2 style={heading}>Transactions</h2>
-      <div style={row}>
+    <Card title="Transactions" desc="Sign and submit extrinsics, single or batched.">
+      <HookRow hook="useTx">
         <button
           type="button"
           data-testid="tx-remark"
@@ -24,16 +23,16 @@ export function TxPanel() {
         >
           Submit remark
         </button>
-        <span style={badge} data-testid="tx-phase">
+        <span className="badge" data-testid="tx-phase">
           {tx.phase}
         </span>
         {tx.data && (
-          <span style={muted} data-testid="tx-result">
+          <span className="muted" data-testid="tx-result">
             {tx.data.ok ? `in block #${tx.data.block.number}` : "dispatch failed"}
           </span>
         )}
-      </div>
-      <div style={{ ...row, marginTop: 8 }}>
+      </HookRow>
+      <HookRow hook="useBatchTx">
         <button
           type="button"
           data-testid="batch-remark"
@@ -49,16 +48,16 @@ export function TxPanel() {
         >
           Submit batch (2 remarks)
         </button>
-        <span style={badge} data-testid="batch-phase">
+        <span className="badge" data-testid="batch-phase">
           {batch.phase}
         </span>
         {batch.data && (
-          <span style={muted} data-testid="batch-result">
+          <span className="muted" data-testid="batch-result">
             {batch.data.ok ? `in block #${batch.data.block.number}` : "dispatch failed"}
           </span>
         )}
-      </div>
-      {(tx.error ?? batch.error) && <p style={errorText}>{(tx.error ?? batch.error)?.message}</p>}
-    </section>
+      </HookRow>
+      {(tx.error ?? batch.error) && <p className="error">{(tx.error ?? batch.error)?.message}</p>}
+    </Card>
   );
 }

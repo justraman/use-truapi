@@ -1,25 +1,50 @@
 <script setup lang="ts">
-import { useFeatureSupported, useHostMode, useTheme } from "@use-truapi/vue";
+import { useFeatureSupported, useHostMode, useRuntime, useTheme } from "@use-truapi/vue";
 import { config } from "../config";
 
+const runtime = useRuntime();
 const hostMode = useHostMode();
 const theme = useTheme();
 const chainSupported = useFeatureSupported({
   tag: "Chain",
   value: config.chains.assetHub.genesisHash,
 });
+const chainNames = Object.keys(runtime.config.chains).join(", ");
 </script>
 
 <template>
-  <header style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap">
-    <h1 style="font-size: 20px; margin: 0; flex: 1">use-truapi example (Vue)</h1>
-    <span class="badge" data-testid="host-mode">{{ hostMode }}</span>
-    <span class="badge" data-testid="theme">
-      {{ theme.variant }}{{ theme.custom ? ` (${theme.custom})` : "" }}
-    </span>
-    <span class="badge" data-testid="chain-supported">
-      chain:
-      {{ chainSupported.data.value === undefined ? "…" : chainSupported.data.value ? "supported" : "unsupported" }}
-    </span>
+  <header class="app-header">
+    <div>
+      <h1 class="app-title">use-truapi example (Vue)</h1>
+      <p class="app-sub">
+        Every composable in the SDK, one live demo each — the chip names the composable driving the
+        control next to it.
+      </p>
+    </div>
+    <div class="header-badges">
+      <div class="header-badge">
+        <code class="hook-chip">useRuntime</code>
+        <span class="badge" data-testid="runtime-dapp">
+          {{ runtime.config.dappName }} · {{ chainNames }}
+        </span>
+      </div>
+      <div class="header-badge">
+        <code class="hook-chip">useHostMode</code>
+        <span class="badge" data-testid="host-mode">{{ hostMode }}</span>
+      </div>
+      <div class="header-badge">
+        <code class="hook-chip">useTheme</code>
+        <span class="badge" data-testid="theme">
+          {{ theme.variant }}{{ theme.custom ? ` (${theme.custom})` : "" }}
+        </span>
+      </div>
+      <div class="header-badge">
+        <code class="hook-chip">useFeatureSupported</code>
+        <span class="badge" data-testid="chain-supported">
+          chain:
+          {{ chainSupported.data.value === undefined ? "…" : chainSupported.data.value ? "supported" : "unsupported" }}
+        </span>
+      </div>
+    </div>
   </header>
 </template>
