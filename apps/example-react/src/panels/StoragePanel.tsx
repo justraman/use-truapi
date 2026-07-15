@@ -1,6 +1,6 @@
 import { useCid, useStorageAuthorization, useUpload } from "@use-truapi/react";
 import { useState } from "react";
-import { badge, errorText, heading, muted, panel, row } from "../ui";
+import { Card, HookRow } from "../ui";
 
 export function StoragePanel() {
   const authorization = useStorageAuthorization();
@@ -12,18 +12,17 @@ export function StoragePanel() {
   const error = authorization.error ?? upload.error ?? fetched.error;
 
   return (
-    <section style={panel}>
-      <h2 style={heading}>Cloud storage (Bulletin)</h2>
-      <div style={row}>
-        <span style={badge} data-testid="storage-authorization">
+    <Card title="Cloud storage" desc="CID-addressed storage on the Bulletin chain.">
+      <HookRow hook="useStorageAuthorization">
+        <span className="badge" data-testid="storage-authorization">
           {authorization.data
             ? authorization.data.authorized
               ? `quota: ${authorization.data.remainingTransactions} txns / ${authorization.data.remainingBytes} bytes`
               : "not authorized"
             : "checking quota…"}
         </span>
-      </div>
-      <div style={{ ...row, marginTop: 8 }}>
+      </HookRow>
+      <HookRow hook="useUpload">
         <input
           data-testid="upload-input"
           value={draft}
@@ -43,16 +42,20 @@ export function StoragePanel() {
         >
           {upload.isPending ? "Uploading…" : "Upload"}
         </button>
-      </div>
-      {lastCid && (
-        <p style={muted}>
-          CID <code data-testid="upload-cid">{lastCid}</code> reads back:{" "}
-          <span data-testid="cid-content">
-            {fetched.data ? new TextDecoder().decode(fetched.data) : "fetching…"}
+      </HookRow>
+      <HookRow hook="useCid">
+        {lastCid ? (
+          <span className="muted">
+            CID <code data-testid="upload-cid">{lastCid}</code> reads back:{" "}
+            <span data-testid="cid-content">
+              {fetched.data ? new TextDecoder().decode(fetched.data) : "fetching…"}
+            </span>
           </span>
-        </p>
-      )}
-      {error && <p style={errorText}>{error.message}</p>}
-    </section>
+        ) : (
+          <span className="muted">upload something to read it back by CID</span>
+        )}
+      </HookRow>
+      {error && <p className="error">{error.message}</p>}
+    </Card>
   );
 }

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useCid, useStorageAuthorization, useUpload } from "@use-truapi/vue";
 import { computed, ref } from "vue";
+import HookRow from "./HookRow.vue";
+import UiCard from "./UiCard.vue";
 
 const authorization = useStorageAuthorization();
 const upload = useUpload();
@@ -27,9 +29,8 @@ function onUpload() {
 </script>
 
 <template>
-  <section class="panel">
-    <h2>Cloud storage (Bulletin)</h2>
-    <div class="row">
+  <UiCard title="Cloud storage" desc="CID-addressed storage on the Bulletin chain.">
+    <HookRow hook="useStorageAuthorization">
       <span class="badge" data-testid="storage-authorization">
         {{
           authorization.data.value
@@ -39,8 +40,8 @@ function onUpload() {
             : "checking quota…"
         }}
       </span>
-    </div>
-    <div class="row">
+    </HookRow>
+    <HookRow hook="useUpload">
       <input data-testid="upload-input" v-model="draft" placeholder="Bytes to store" />
       <button
         type="button"
@@ -50,11 +51,14 @@ function onUpload() {
       >
         {{ upload.isPending.value ? "Uploading…" : "Upload" }}
       </button>
-    </div>
-    <p v-if="lastCid" class="muted">
-      CID <code data-testid="upload-cid">{{ lastCid }}</code> reads back:
-      <span data-testid="cid-content">{{ fetchedText ?? "fetching…" }}</span>
-    </p>
+    </HookRow>
+    <HookRow hook="useCid">
+      <span v-if="lastCid" class="muted">
+        CID <code data-testid="upload-cid">{{ lastCid }}</code> reads back:
+        <span data-testid="cid-content">{{ fetchedText ?? "fetching…" }}</span>
+      </span>
+      <span v-else class="muted">upload something to read it back by CID</span>
+    </HookRow>
     <p v-if="firstError" class="error">{{ firstError.message }}</p>
-  </section>
+  </UiCard>
 </template>

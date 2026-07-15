@@ -9,7 +9,7 @@ import {
   useSelectedAccount,
   useTypedApi,
 } from "@use-truapi/react";
-import { badge, heading, muted, panel, row } from "../ui";
+import { Card, HookRow } from "../ui";
 
 export function ChainPanel() {
   const selected = useSelectedAccount();
@@ -34,36 +34,42 @@ export function ChainPanel() {
   );
 
   return (
-    <section style={panel}>
-      <h2 style={heading}>Chain</h2>
-      <div style={row}>
-        <span style={badge} data-testid="chain-client">
+    <Card title="Chain" desc="Live chain state on Paseo Asset Hub.">
+      <HookRow hook="useChainClient">
+        <span className="badge" data-testid="chain-client">
           client: {client.isSuccess ? "connected" : "connecting"}
         </span>
-        <span style={badge} data-testid="typed-api">
+      </HookRow>
+      <HookRow hook="useTypedApi">
+        <span className="badge" data-testid="typed-api">
           typed api: {api.isSuccess ? "ready" : "loading"}
         </span>
-        <span style={badge} data-testid="chain-spec">
+      </HookRow>
+      <HookRow hook="useChainSpec">
+        <span className="badge" data-testid="chain-spec">
           {spec.data?.name ?? "spec: n/a"}
         </span>
-      </div>
-      <p>
-        Block: <span data-testid="block-number">{block.data ?? "—"}</span>
-      </p>
-      <p>
-        Balance:{" "}
+      </HookRow>
+      <HookRow hook="useBlockNumber">
+        <span className="value" data-testid="block-number">
+          {block.data ?? "—"}
+        </span>
+      </HookRow>
+      <HookRow hook={["useBalance", "useFormattedBalance"]}>
         <span data-testid="balance">
           {selected ? (formatted !== "" ? formatted : "—") : "connect an account"}
         </span>
-      </p>
-      <p style={muted}>
-        Total issuance: <span data-testid="total-issuance">{formattedIssuance || "—"}</span>
-        {" · "}
-        Chain time:{" "}
+      </HookRow>
+      <HookRow hook="useChainQuery">
+        <span className="muted">total issuance</span>
+        <span data-testid="total-issuance">{formattedIssuance || "—"}</span>
+      </HookRow>
+      <HookRow hook="useChainSubscription">
+        <span className="muted">chain time</span>
         <span data-testid="chain-time">
           {now.data !== undefined ? new Date(Number(now.data.value)).toLocaleTimeString() : "—"}
         </span>
-      </p>
-    </section>
+      </HookRow>
+    </Card>
   );
 }

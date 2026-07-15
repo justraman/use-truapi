@@ -6,7 +6,7 @@ import {
   useStatements,
 } from "@use-truapi/react";
 import { useState } from "react";
-import { badge, errorText, heading, muted, panel, row } from "../ui";
+import { Card, HookRow } from "../ui";
 
 interface NoteStatement {
   text: string;
@@ -28,21 +28,29 @@ export function StatementsPanel() {
 
   if (!isHost) {
     return (
-      <section style={panel}>
-        <h2 style={heading}>Statements</h2>
-        <p data-testid="statements-unavailable">host only</p>
-      </section>
+      <Card title="Statements" desc="Ephemeral broadcast messages on the statement store.">
+        <HookRow hook={["useStatements", "usePublishStatement", "useStatementChannel"]}>
+          <span className="muted" data-testid="statements-unavailable">
+            host only
+          </span>
+        </HookRow>
+      </Card>
     );
   }
   return (
-    <section style={panel}>
-      <h2 style={heading}>Statements</h2>
-      <ul data-testid="statements">
-        {statements.map((statement, i) => (
-          <li key={`${statement.signerHex ?? "anon"}-${i}`}>{statement.data.text}</li>
-        ))}
-      </ul>
-      <div style={row}>
+    <Card title="Statements" desc="Ephemeral broadcast messages on the statement store.">
+      <HookRow hook="useStatements">
+        {statements.length === 0 ? (
+          <span className="muted">no statements yet</span>
+        ) : (
+          <ul className="list" data-testid="statements">
+            {statements.map((statement, i) => (
+              <li key={`${statement.signerHex ?? "anon"}-${i}`}>{statement.data.text}</li>
+            ))}
+          </ul>
+        )}
+      </HookRow>
+      <HookRow hook="usePublishStatement">
         <input
           data-testid="statement-input"
           value={draft}
@@ -57,8 +65,8 @@ export function StatementsPanel() {
         >
           Publish
         </button>
-      </div>
-      <div style={{ ...row, marginTop: 8 }}>
+      </HookRow>
+      <HookRow hook="useStatementChannel">
         <button
           type="button"
           data-testid="presence-write"
@@ -72,12 +80,12 @@ export function StatementsPanel() {
         >
           I'm here
         </button>
-        <span style={badge} data-testid="presence-count">
+        <span className="badge" data-testid="presence-count">
           presence: {presence.values.size} peer{presence.values.size === 1 ? "" : "s"}
         </span>
-        {!presence.ready && <span style={muted}>channel connecting…</span>}
-      </div>
-      {error && <p style={errorText}>{error.message}</p>}
-    </section>
+        {!presence.ready && <span className="muted">channel connecting…</span>}
+      </HookRow>
+      {error && <p className="error">{error.message}</p>}
+    </Card>
   );
 }

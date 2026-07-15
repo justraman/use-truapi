@@ -8,6 +8,8 @@ import {
   useSendChatMessage,
 } from "@use-truapi/vue";
 import { computed, ref } from "vue";
+import HookRow from "./HookRow.vue";
+import UiCard from "./UiCard.vue";
 
 const ICON =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%23e6007a'/%3E%3C/svg%3E";
@@ -45,27 +47,32 @@ function onSend() {
 </script>
 
 <template>
-  <section class="panel">
-    <h2>Chat</h2>
-    <div class="row">
+  <UiCard title="Chat" desc="Rooms, bots and messages through the host chat.">
+    <HookRow hook="useChatRoom">
       <span class="badge" data-testid="chat-room-status">room: {{ room.data.value ?? "registering…" }}</span>
+    </HookRow>
+    <HookRow hook="useChatBot">
       <span class="badge" data-testid="chat-bot-status">bot: {{ bot.data.value ?? "registering…" }}</span>
+    </HookRow>
+    <HookRow hook="useChatRooms">
       <span class="badge" data-testid="chat-rooms-count">
         {{ rooms.data.value?.length ?? 0 }} room{{ (rooms.data.value?.length ?? 0) === 1 ? "" : "s" }}
       </span>
-      <span v-if="lastAction" class="muted" data-testid="chat-last-action">last action: {{ lastAction }}</span>
-    </div>
-    <ul data-testid="chat-messages">
-      <li
-        v-for="(message, i) in messages.data.value ?? []"
-        :key="`${message.peer}-${message.receivedAt}-${i}`"
-      >
-        <code>{{ message.peer.slice(0, 8) }}</code
-        >:
-        {{ message.content.tag === "Text" ? message.content.value.text : `[${message.content.tag}]` }}
-      </li>
-    </ul>
-    <div class="row">
+    </HookRow>
+    <HookRow hook="useChatMessages">
+      <span v-if="(messages.data.value?.length ?? 0) === 0" class="muted">no messages yet</span>
+      <ul v-else class="list" data-testid="chat-messages">
+        <li
+          v-for="(message, i) in messages.data.value ?? []"
+          :key="`${message.peer}-${message.receivedAt}-${i}`"
+        >
+          <code>{{ message.peer.slice(0, 8) }}</code
+          >:
+          {{ message.content.tag === "Text" ? message.content.value.text : `[${message.content.tag}]` }}
+        </li>
+      </ul>
+    </HookRow>
+    <HookRow hook="useSendChatMessage">
       <input data-testid="chat-input" v-model="draft" placeholder="Say something" />
       <button
         type="button"
@@ -75,7 +82,12 @@ function onSend() {
       >
         Send
       </button>
-    </div>
+    </HookRow>
+    <HookRow hook="useChatActions">
+      <span class="muted" data-testid="chat-last-action">
+        {{ lastAction ? `last action: ${lastAction}` : "no actions received yet" }}
+      </span>
+    </HookRow>
     <p v-if="firstError" class="error">{{ firstError.message }}</p>
-  </section>
+  </UiCard>
 </template>

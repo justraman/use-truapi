@@ -9,6 +9,8 @@ import {
 } from "@use-truapi/vue";
 import { computed } from "vue";
 import { COUNTER_LIBRARY, cdmJson, counterAbi, counterAddress } from "../counter-contract";
+import HookRow from "./HookRow.vue";
+import UiCard from "./UiCard.vue";
 
 // Manifest path: typed handle resolved from cdm.json.
 const contract = useContract(cdmJson, COUNTER_LIBRARY);
@@ -26,6 +28,8 @@ const mapAccount = useEnsureAccountMapped(cdmJson);
 const adhoc = useContractAt(counterAddress, counterAbi);
 const adhocCount = useContractQuery<bigint>(adhoc, "getCount", []);
 
+const desc = `Counter contract at ${counterAddress ? truncateAddress(counterAddress) : "(no address in cdm.json)"} on Asset Hub.`;
+
 const firstError = computed(
   () =>
     contract.error.value ??
@@ -37,17 +41,17 @@ const firstError = computed(
 </script>
 
 <template>
-  <section class="panel">
-    <h2>
-      Contract <span class="muted">{{ COUNTER_LIBRARY }}</span>
-    </h2>
-    <p class="muted">
-      {{ counterAddress ? truncateAddress(counterAddress) : "no address in cdm.json" }} on Asset Hub
-    </p>
-    <div class="row">
+  <UiCard :title="`Contracts · ${COUNTER_LIBRARY}`" :desc="desc">
+    <HookRow hook="useContract">
       <span class="badge">
-        count: <span data-testid="counter-value">{{ count.data.value?.toString() ?? "—" }}</span>
+        handle: {{ contract.data.value ? "resolved from cdm.json" : "resolving…" }}
       </span>
+    </HookRow>
+    <HookRow hook="useContractQuery">
+      <span class="muted">getCount()</span>
+      <span class="value" data-testid="counter-value">{{ count.data.value?.toString() ?? "—" }}</span>
+    </HookRow>
+    <HookRow hook="useContractTx">
       <button
         type="button"
         data-testid="counter-increment"
@@ -64,6 +68,8 @@ const firstError = computed(
       >
         Add 5
       </button>
+    </HookRow>
+    <HookRow hook="useEnsureAccountMapped">
       <button
         type="button"
         data-testid="map-account"
@@ -72,11 +78,12 @@ const firstError = computed(
       >
         Map account
       </button>
-    </div>
-    <p class="muted">
-      Ad-hoc handle (useContractAt) reads the same value:
-      <span data-testid="counter-value-adhoc">{{ adhocCount.data.value?.toString() ?? "—" }}</span>
-    </p>
+      <span class="muted">one-time pallet-revive mapping before the first tx</span>
+    </HookRow>
+    <HookRow hook="useContractAt">
+      <span class="muted">ad-hoc handle (address + ABI) reads the same value</span>
+      <span class="value" data-testid="counter-value-adhoc">{{ adhocCount.data.value?.toString() ?? "—" }}</span>
+    </HookRow>
     <p v-if="firstError" class="error">{{ firstError.message }}</p>
-  </section>
+  </UiCard>
 </template>

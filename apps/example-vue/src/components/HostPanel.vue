@@ -10,6 +10,8 @@ import {
 } from "@use-truapi/vue";
 import { computed, ref } from "vue";
 import { hexPreview } from "../ui";
+import HookRow from "./HookRow.vue";
+import UiCard from "./UiCard.vue";
 
 const note = useHostStorage<string>("example-note");
 const navigate = useHostNavigate();
@@ -40,15 +42,19 @@ function onDeriveEntropy() {
 </script>
 
 <template>
-  <section class="panel">
-    <h2>Host capabilities</h2>
-    <p>Saved note: <span data-testid="note-value">{{ note.data.value ?? "(empty)" }}</span></p>
-    <div class="row">
+  <UiCard
+    title="Host capabilities"
+    desc="Standalone these reject with HostUnavailableError — run inside a host to try them."
+  >
+    <HookRow hook="useHostStorage">
+      <span class="muted">
+        saved note: <span data-testid="note-value">{{ note.data.value ?? "(empty)" }}</span>
+      </span>
       <input data-testid="note-input" v-model="draft" placeholder="Type a note" />
       <button type="button" data-testid="note-save" @click="void note.set(draft)">Save</button>
       <button type="button" data-testid="note-remove" @click="void note.remove()">Clear</button>
-    </div>
-    <div class="row">
+    </HookRow>
+    <HookRow hook="useHostNavigate">
       <button
         type="button"
         data-testid="host-navigate"
@@ -56,6 +62,8 @@ function onDeriveEntropy() {
       >
         Open polkadot.com
       </button>
+    </HookRow>
+    <HookRow hook="useNotifications">
       <button
         type="button"
         data-testid="notify"
@@ -72,8 +80,8 @@ function onDeriveEntropy() {
       >
         Cancel it
       </button>
-    </div>
-    <div class="row">
+    </HookRow>
+    <HookRow hook="usePermission">
       <button
         type="button"
         data-testid="request-permission"
@@ -85,6 +93,8 @@ function onDeriveEntropy() {
       <span v-if="permission.data.value !== undefined" class="badge" data-testid="permission-result">
         {{ permission.data.value ? "granted" : "denied" }}
       </span>
+    </HookRow>
+    <HookRow hook="useDevicePermission">
       <button
         type="button"
         data-testid="request-device-permission"
@@ -100,8 +110,8 @@ function onDeriveEntropy() {
       >
         {{ devicePermission.data.value ? "granted" : "denied" }}
       </span>
-    </div>
-    <div class="row">
+    </HookRow>
+    <HookRow hook="useResourceAllocation">
       <button
         type="button"
         data-testid="request-allocation"
@@ -113,6 +123,8 @@ function onDeriveEntropy() {
       <span v-if="allocation.data.value" class="badge" data-testid="allocation-result">
         {{ allocation.data.value.join(", ") }}
       </span>
+    </HookRow>
+    <HookRow hook="useDeriveEntropy">
       <button
         type="button"
         data-testid="derive-entropy"
@@ -122,11 +134,7 @@ function onDeriveEntropy() {
         Derive entropy (RFC-0007)
       </button>
       <code v-if="entropy.data.value" data-testid="entropy-result">{{ hexPreview(entropy.data.value) }}</code>
-    </div>
-    <p class="muted">
-      Permissions, notifications, allocations and entropy are host capabilities — standalone they
-      reject with HostUnavailableError.
-    </p>
+    </HookRow>
     <p v-if="firstError" class="error">{{ firstError.message }}</p>
-  </section>
+  </UiCard>
 </template>

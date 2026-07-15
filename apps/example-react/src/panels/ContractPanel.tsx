@@ -7,7 +7,7 @@ import {
   useEnsureAccountMapped,
 } from "@use-truapi/react";
 import { COUNTER_LIBRARY, cdmJson, counterAbi, counterAddress } from "../counter-contract";
-import { badge, errorText, heading, muted, panel, row } from "../ui";
+import { Card, HookRow } from "../ui";
 
 export function ContractPanel() {
   // Manifest path: typed handle resolved from cdm.json.
@@ -30,17 +30,22 @@ export function ContractPanel() {
     contract.error ?? count.error ?? increment.error ?? addFive.error ?? mapAccount.error;
 
   return (
-    <section style={panel}>
-      <h2 style={heading}>
-        Contract <span style={muted}>{COUNTER_LIBRARY}</span>
-      </h2>
-      <p style={muted}>
-        {counterAddress ? truncateAddress(counterAddress) : "no address in cdm.json"} on Asset Hub
-      </p>
-      <div style={row}>
-        <span style={badge}>
-          count: <span data-testid="counter-value">{count.data?.toString() ?? "—"}</span>
+    <Card
+      title={`Contracts · ${COUNTER_LIBRARY}`}
+      desc={`Counter contract at ${counterAddress ? truncateAddress(counterAddress) : "(no address in cdm.json)"} on Asset Hub.`}
+    >
+      <HookRow hook="useContract">
+        <span className="badge">
+          handle: {contract.data ? "resolved from cdm.json" : "resolving…"}
         </span>
+      </HookRow>
+      <HookRow hook="useContractQuery">
+        <span className="muted">getCount()</span>
+        <span className="value" data-testid="counter-value">
+          {count.data?.toString() ?? "—"}
+        </span>
+      </HookRow>
+      <HookRow hook="useContractTx">
         <button
           type="button"
           data-testid="counter-increment"
@@ -57,6 +62,8 @@ export function ContractPanel() {
         >
           Add 5
         </button>
+      </HookRow>
+      <HookRow hook="useEnsureAccountMapped">
         <button
           type="button"
           data-testid="map-account"
@@ -65,12 +72,15 @@ export function ContractPanel() {
         >
           Map account
         </button>
-      </div>
-      <p style={muted}>
-        Ad-hoc handle (useContractAt) reads the same value:{" "}
-        <span data-testid="counter-value-adhoc">{adhocCount.data?.toString() ?? "—"}</span>
-      </p>
-      {error && <p style={errorText}>{error.message}</p>}
-    </section>
+        <span className="muted">one-time pallet-revive mapping before the first tx</span>
+      </HookRow>
+      <HookRow hook="useContractAt">
+        <span className="muted">ad-hoc handle (address + ABI) reads the same value</span>
+        <span className="value" data-testid="counter-value-adhoc">
+          {adhocCount.data?.toString() ?? "—"}
+        </span>
+      </HookRow>
+      {error && <p className="error">{error.message}</p>}
+    </Card>
   );
 }
