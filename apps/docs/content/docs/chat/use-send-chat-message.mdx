@@ -1,0 +1,136 @@
+---
+title: useSendChatMessage
+description: Post a message into a chat room
+---
+
+`useSendChatMessage` posts messages into a room. Call `send(content, roomId?)`;
+it resolves to the assigned `messageId`, and the usual mutation state
+(`data`, `error`, `isPending`, `reset`) tracks the last send. Plain strings
+become Text messages: `send("hi")` is sugar for sending
+`{ tag: "Text", value: { text: "hi" } }`; any other `ChatMessageContent`
+variant is passed through as-is.
+
+The target room can be set once on the hook or per call: pass `roomId` to
+the hook for a fixed room, or as the second argument of `send` to override
+it (handy for bots replying into whichever room an action came from). If
+neither is given, `send` rejects.
+
+Chat is host-only. Running standalone `send` rejects with
+`HostUnavailableError`; gate the send UI with
+[`useIsHost`](/docs/host/use-is-host).
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useState } from "react";
+import { useSendChatMessage } from "@use-truapi/react";
+
+function Composer({ roomId }: { roomId: string }) {
+  const { send, isPending, error } = useSendChatMessage(roomId);
+  const [draft, setDraft] = useState("");
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void send(draft).catch(() => {});
+        setDraft("");
+      }}
+    >
+      <input value={draft} onChange={(e) => setDraft(e.target.value)} />
+      <button type="submit" disabled={isPending || draft === ""}>
+        {isPending ? "Sending…" : "Send"}
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+    </form>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue";
+import { useSendChatMessage } from "@use-truapi/vue";
+
+const props = defineProps<{ roomId: string }>();
+const { send, isPending, error } = useSendChatMessage(() => props.roomId);
+const draft = ref("");
+
+function onSubmit() {
+  void send(draft.value).catch(() => {});
+  draft.value = "";
+}
+</script>
+
+<template>
+  <form @submit.prevent="onSubmit">
+    <input v-model="draft" />
+    <button type="submit" :disabled="isPending || draft === ''">
+      {{ isPending ? "Sending…" : "Send" }}
+    </button>
+    <p v-if="error" role="alert">{{ error.message }}</p>
+  </form>
+</template>
+```
+
+In Vue, the hook-level `roomId` may be a getter for reactive rooms.
+
+</Tab>
+</Tabs>
+
+In a fire-and-forget handler, `void send(draft).catch(() => {})` keeps the
+promise from going unhandled; the failure still lands in `error`. Await
+`send` instead when you need the result.
+
+Anything beyond plain text is sent as a tagged `ChatMessageContent`:
+
+```ts
+const { send } = useSendChatMessage("support");
+
+// Action buttons
+const { messageId } = await send({
+  tag: "Actions",
+  value: {
+    text: "Feeling lucky?",
+    actions: [{ actionId: "roll", title: "Roll the dice" }],
+    layout: "Column",
+  },
+});
+
+// React to that message
+await send({ tag: "Reaction", value: { messageId, emoji: "🎲" } });
+```
+
+To target rooms per call, omit the hook-level `roomId` (or keep it as a
+default) and pass the room as the second argument; the call-site room always
+wins:
+
+```ts
+const { send } = useSendChatMessage();
+void send("Done!", action.roomId).catch(() => {});
+```
+
+## See also
+
+- [`useChatRoom`](/docs/chat/use-chat-room) registers the room before posting into it.
+- [`useChatMessages`](/docs/chat/use-chat-messages) renders what lands in the room.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useSendChatMessage.md</include>
+
+<include>../../../generated/react/interfaces/SendChatMessageVariables.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useSendChatMessage.md</include>
+
+<include>../../../generated/vue/interfaces/SendChatMessageVariables.md</include>

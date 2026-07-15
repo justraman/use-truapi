@@ -1,4 +1,4 @@
-import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import type { UseQueryResult } from "@tanstack/react-query";
 import {
   type LoginResult,
   type ProviderType,
@@ -12,8 +12,10 @@ import { useCallback } from "react";
 import { useRuntime } from "../context";
 import {
   type MutationOptions,
+  type NamedMutation,
   type OptionalVariables,
   type QueryOptions,
+  dropMutate,
   useStore,
   useTruapiMutation,
   useTruapiQuery,
@@ -53,15 +55,22 @@ export function useSelectedAccount(): SignerAccount | null {
   return useStore(useRuntime().accounts.state).selectedAccount;
 }
 
-/** Connect as a mutation: `mutate()` / `mutateAsync(provider?)`. */
+/** Connect with mutation state: `connect(provider?)` plus `isPending`/`error`/`data`. */
 export function useConnect(options?: {
   mutation?: MutationOptions<SignerAccount[], OptionalVariables<ProviderType>>;
-}): UseMutationResult<SignerAccount[], Error, OptionalVariables<ProviderType>> {
+}): NamedMutation<SignerAccount[], OptionalVariables<ProviderType>> & {
+  connect: (provider?: ProviderType) => Promise<SignerAccount[]>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(
+  const mutation = useTruapiMutation(
     (provider: OptionalVariables<ProviderType>) => runtime.accounts.connect(provider ?? undefined),
     options?.mutation,
   );
+  const { mutateAsync } = mutation;
+  return {
+    ...dropMutate(mutation),
+    connect: useCallback((provider?: ProviderType) => mutateAsync(provider), [mutateAsync]),
+  };
 }
 
 export function useDisconnect(): () => void {
@@ -76,15 +85,22 @@ export function useSigner(): PolkadotSigner | null {
   return runtime.accounts.getSigner();
 }
 
-/** RFC-0009 login — call `mutate` from a user gesture. */
+/** RFC-0009 login — call `login()` from a user gesture. */
 export function useLogin(options?: {
   mutation?: MutationOptions<LoginResult, OptionalVariables<string>>;
-}): UseMutationResult<LoginResult, Error, OptionalVariables<string>> {
+}): NamedMutation<LoginResult, OptionalVariables<string>> & {
+  login: (reason?: string) => Promise<LoginResult>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(
+  const mutation = useTruapiMutation(
     (reason: OptionalVariables<string>) => runtime.accounts.login(reason ?? undefined),
     options?.mutation,
   );
+  const { mutateAsync } = mutation;
+  return {
+    ...dropMutate(mutation),
+    login: useCallback((reason?: string) => mutateAsync(reason), [mutateAsync]),
+  };
 }
 
 /** The user's primary DotNS username; null standalone or when not logged in. */
@@ -95,10 +111,20 @@ export function useUserId(options?: {
   return useTruapiQuery(queryKeys.userId(), () => runtime.accounts.getUserId(), options);
 }
 
-/** Sign arbitrary bytes with the selected account. */
+/** Sign arbitrary bytes with the selected account: `sign(data)`. */
 export function useSignRaw(options?: {
   mutation?: MutationOptions<Uint8Array, Uint8Array>;
-}): UseMutationResult<Uint8Array, Error, Uint8Array> {
+}): NamedMutation<Uint8Array, Uint8Array> & {
+  sign: (data: Uint8Array) => Promise<Uint8Array>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation((data: Uint8Array) => runtime.accounts.signRaw(data), options?.mutation);
+  const mutation = useTruapiMutation(
+    (data: Uint8Array) => runtime.accounts.signRaw(data),
+    options?.mutation,
+  );
+  const { mutateAsync } = mutation;
+  return {
+    ...dropMutate(mutation),
+    sign: useCallback((data: Uint8Array) => mutateAsync(data), [mutateAsync]),
+  };
 }

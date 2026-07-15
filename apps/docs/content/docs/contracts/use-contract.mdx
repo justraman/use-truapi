@@ -1,0 +1,106 @@
+---
+title: useContract
+description: Typed PolkaVM contract handle from a cdm.json manifest
+---
+
+`useContract` resolves a typed contract handle from a `cdm.json` manifest,
+the file `cdm deploy` produces. `data` is a `Contract` handle with one
+property per contract method, each exposing a dry-run read and a transaction;
+feed it to [`useContractQuery`](/docs/contracts/use-contract-query) and
+[`useContractTx`](/docs/contracts/use-contract-tx).
+
+Contract managers are cached per (chain, manifest) and share the runtime's
+signer, so any number of components can resolve the same manifest without
+redundant setup. The result is cached under the chain key, the manifest name
+(or a session-stable id when the manifest has no name), the library name and
+the `live` flag.
+
+Addresses come from the manifest snapshot by default. Pass `live: true` to
+resolve them from the on-chain CDM registry instead, so the handle follows
+re-deployments without shipping a new manifest.
+
+## Usage
+
+Keep the manifest import in one module so every component shares the same
+object (the cache key is derived from it):
+
+```ts title="counter-contract.ts"
+import type { CdmJson } from "@use-truapi/react"; // or "@use-truapi/vue"
+import manifest from "../contracts/cdm.json";
+
+export const COUNTER_LIBRARY = "@my-app/counter";
+export const cdmJson = manifest as unknown as CdmJson;
+```
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useContract, useContractQuery } from "@use-truapi/react";
+import { COUNTER_LIBRARY, cdmJson } from "./counter-contract";
+
+function Counter() {
+  const contract = useContract(cdmJson, COUNTER_LIBRARY);
+  const count = useContractQuery<bigint>(contract.data, "getCount", []);
+
+  if (contract.isPending) return <p>Resolving contract…</p>;
+  if (contract.error) return <p>Failed to load contract: {contract.error.message}</p>;
+
+  return <p>Count: {count.data?.toString() ?? "…"}</p>;
+}
+```
+
+In React, pass the resolved handle, `contract.data`, to `useContractQuery`
+and `useContractTx`.
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useContract, useContractQuery } from "@use-truapi/vue";
+import { COUNTER_LIBRARY, cdmJson } from "./counter-contract";
+
+const contract = useContract(cdmJson, COUNTER_LIBRARY);
+const count = useContractQuery<bigint>(contract, "getCount", []);
+</script>
+
+<template>
+  <p v-if="contract.isPending">Resolving contract…</p>
+  <p v-else-if="contract.error">Failed to load contract: {{ contract.error.message }}</p>
+  <p v-else>Count: {{ count.data?.toString() ?? "…" }}</p>
+</template>
+```
+
+In Vue, pass the whole `contract` query result to `useContractQuery` and
+`useContractTx`; they unwrap `contract.data` reactively.
+
+</Tab>
+</Tabs>
+
+To resolve addresses from the live registry, or build against a specific
+chain:
+
+```ts
+const contract = useContract(cdmJson, COUNTER_LIBRARY, {
+  live: true,
+  chain: "assetHub",
+});
+```
+
+## See also
+
+- [`useContractAt`](/docs/contracts/use-contract-at) builds a handle from an address and an ABI, no manifest.
+- [`useContractQuery`](/docs/contracts/use-contract-query) runs read-only dry-run calls on the handle.
+- [`useContractTx`](/docs/contracts/use-contract-tx) signs and submits contract writes.
+- [`useEnsureAccountMapped`](/docs/contracts/use-ensure-account-mapped) maps the account once before the first write.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useContract.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useContract.md</include>

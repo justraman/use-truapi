@@ -22,7 +22,7 @@ const draft = ref("");
 
 const firstError = computed(
   () =>
-    notifications.push.error.value ??
+    notifications.error.value ??
     permission.error.value ??
     devicePermission.error.value ??
     allocation.error.value ??
@@ -30,12 +30,12 @@ const firstError = computed(
 );
 
 function onCancelNotification() {
-  const id = notifications.push.data.value;
+  const id = notifications.data.value;
   if (id !== undefined) void notifications.cancel(id).catch(() => {});
 }
 
 function onDeriveEntropy() {
-  entropy.mutate(new TextEncoder().encode("use-truapi-example"));
+  void entropy.derive(new TextEncoder().encode("use-truapi-example")).catch(() => {});
 }
 </script>
 
@@ -59,15 +59,15 @@ function onDeriveEntropy() {
       <button
         type="button"
         data-testid="notify"
-        :disabled="notifications.push.isPending.value"
-        @click="notifications.push.mutate({ text: 'Hello from use-truapi!' })"
+        :disabled="notifications.isPending.value"
+        @click="notifications.push({ text: 'Hello from use-truapi!' }).catch(() => {})"
       >
         Push notification
       </button>
       <button
         type="button"
         data-testid="cancel-notification"
-        :disabled="notifications.push.data.value === undefined"
+        :disabled="notifications.data.value === undefined"
         @click="onCancelNotification"
       >
         Cancel it
@@ -78,7 +78,7 @@ function onDeriveEntropy() {
         type="button"
         data-testid="request-permission"
         :disabled="permission.isPending.value"
-        @click="permission.mutate({ tag: 'StatementSubmit' })"
+        @click="permission.request({ tag: 'StatementSubmit' }).catch(() => {})"
       >
         Statement permission
       </button>
@@ -89,7 +89,7 @@ function onDeriveEntropy() {
         type="button"
         data-testid="request-device-permission"
         :disabled="devicePermission.isPending.value"
-        @click="devicePermission.mutate('Notifications')"
+        @click="devicePermission.request('Notifications').catch(() => {})"
       >
         Device notifications
       </button>
@@ -106,7 +106,7 @@ function onDeriveEntropy() {
         type="button"
         data-testid="request-allocation"
         :disabled="allocation.isPending.value"
-        @click="allocation.mutate([{ tag: 'StatementStoreAllowance' }])"
+        @click="allocation.request([{ tag: 'StatementStoreAllowance' }]).catch(() => {})"
       >
         Statement allowance (RFC-0010)
       </button>

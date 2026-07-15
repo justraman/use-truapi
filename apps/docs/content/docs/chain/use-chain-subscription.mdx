@@ -1,0 +1,113 @@
+---
+title: useChainSubscription
+description: Live subscription to any typed-api observable, shared
+---
+
+`useChainSubscription` subscribes to any observable exposed by the typed PAPI
+api or the raw client (storage watches, event streams, block streams) and
+surfaces the latest value as `data`. Your `select` callback receives the
+typed `api` and the `PolkadotClient` and returns anything with a
+`subscribe(observer)` method.
+
+The subscription is shared: any number of components mounting the same
+`(chain, deps)` pair hold a single subscription, dropped when the last
+consumer unmounts. Like [`useChainQuery`](/docs/chain/use-chain-query),
+`deps` identify the subscription: change a dep and the hook re-attaches under
+the new inputs. If the stream errors, the result flips into the error state
+but the last received `data` is kept. While `enabled` is `false` nothing is
+attached.
+
+Use this for values that should track the chain head; for a read that only
+needs to happen once, use [`useChainQuery`](/docs/chain/use-chain-query).
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useChainSubscription } from "@use-truapi/react";
+
+function Clock() {
+  const { data: now, isPending, error } = useChainSubscription(
+    (api) => api.query.Timestamp.Now.watchValue(),
+    [],
+  );
+
+  if (isPending) return <p>Waiting for the chain…</p>;
+  if (error) return <p>Subscription failed: {error.message}</p>;
+
+  return <p>On-chain time: {new Date(Number(now)).toLocaleTimeString()}</p>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useChainSubscription } from "@use-truapi/vue";
+import { computed } from "vue";
+
+const { data: now, isPending, error } = useChainSubscription(
+  (api) => api.query.Timestamp.Now.watchValue(),
+  [],
+);
+
+const time = computed(() =>
+  now.value !== undefined
+    ? new Date(Number(now.value)).toLocaleTimeString()
+    : "",
+);
+</script>
+
+<template>
+  <p v-if="isPending">Waiting for the chain…</p>
+  <p v-else-if="error">Subscription failed: {{ error.message }}</p>
+  <p v-else>On-chain time: {{ time }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+Anything the observable closes over belongs in `deps`, so the subscription
+re-attaches when it changes (in Vue, pass getters):
+
+```ts
+const { data: account } = useChainSubscription(
+  (api) => api.query.System.Account.watchValue(address, { at: "best" }),
+  [address],
+  { enabled: address !== undefined },
+);
+```
+
+`select` also receives the raw `PolkadotClient`, so client streams work too.
+Give such subscriptions a distinguishing dep (a string label works) so they
+don't collide with other empty-deps subscriptions on the same chain:
+
+```ts
+const { data: finalized } = useChainSubscription(
+  (_api, client) => client.finalizedBlock$,
+  ["finalizedBlock"],
+);
+```
+
+Values are pushed, not polled. There is nothing to refetch; new values arrive
+on their own, and the result settles once the first value lands.
+
+## See also
+
+- [`useChainQuery`](/docs/chain/use-chain-query) for one-shot reads without a live subscription.
+- [`useBlockNumber`](/docs/chain/use-block-number) is a ready-made best-block watch.
+- [`useBalance`](/docs/chain/use-balance) is a ready-made native balance watch.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useChainSubscription.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useChainSubscription.md</include>

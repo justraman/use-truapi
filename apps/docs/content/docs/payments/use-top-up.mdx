@@ -1,0 +1,105 @@
+---
+title: useTopUp
+description: Fund the payment purse from a product account or provided keys
+---
+
+`useTopUp` moves funds into the app's RFC-0006 payment purse. Call
+`topUp(amount, source, into?)`; the promise resolves once the host has
+performed the top-up. There is no return value to inspect: watch
+[`usePaymentBalance`](/docs/payments/use-payment-balance) to see the new
+funds land.
+
+`source` is a `PaymentTopUpSource`, a tagged union naming where the funds
+come from: `"ProductAccount"` (one of the product's scoped accounts, by
+`derivationIndex`), `"PrivateKey"` (a one-time account by its sr25519 secret
+key) or `"Coins"` (coin secret keys, one per coin).
+
+Payments are host-only: standalone the call rejects with
+`HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useTopUp } from "@use-truapi/react";
+
+function TopUpButton({ amount }: { amount: bigint }) {
+  const { topUp, isPending, isSuccess, error } = useTopUp();
+
+  function onTopUp() {
+    void topUp(amount, {
+      tag: "ProductAccount",
+      value: { derivationIndex: 0 },
+    }).catch(() => {});
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onTopUp} disabled={isPending}>
+        {isPending ? "Topping up…" : "Top up"}
+      </button>
+      {isSuccess && <p>Purse funded ✓</p>}
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useTopUp } from "@use-truapi/vue";
+
+const props = defineProps<{ amount: bigint }>();
+const { topUp, isPending, isSuccess, error } = useTopUp();
+
+function onTopUp() {
+  void topUp(props.amount, {
+    tag: "ProductAccount",
+    value: { derivationIndex: 0 },
+  }).catch(() => {});
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onTopUp">
+    {{ isPending ? "Topping up…" : "Top up" }}
+  </button>
+  <p v-if="isSuccess">Purse funded ✓</p>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+The handlers above are fire-and-forget: the empty `catch` silences the
+rejected promise, and the failure still shows up in `error`. To fund a
+non-main purse, pass its `PaymentPurseId` as the third argument:
+
+```ts
+await topUp(amount, source, 1);
+```
+
+## See also
+
+- [`usePaymentBalance`](/docs/payments/use-payment-balance) watches the purse fill up.
+- [`useRequestPayment`](/docs/payments/use-request-payment) spends from the purse.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useTopUp.md</include>
+
+<include>../../../generated/react/interfaces/TopUpVariables.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useTopUp.md</include>
+
+<include>../../../generated/vue/interfaces/TopUpVariables.md</include>

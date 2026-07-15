@@ -1,0 +1,103 @@
+---
+title: usePermission
+description: Request an RFC-0002 remote permission from the host
+---
+
+`usePermission` asks the host to grant one RFC-0002 remote permission, such
+as `ChainSubmit`, `StatementSubmit` or `Remote` domain access. Call
+`request(permission)`: it resolves to `true` when the host granted and
+`false` when the user declined. A denial is data, not an exception; thrown
+errors mean the request itself failed. The hook also returns mutation state
+(`isPending`, `error`, `data`, `reset`).
+
+You rarely need `ChainSubmit`, `StatementSubmit` or `PreimageSubmit`
+explicitly: the corresponding business hooks request them on first use
+([`useTx`](/docs/tx/use-tx) requests `ChainSubmit` on first submit, for
+example). Reach for `usePermission` to front-load the prompt at a natural
+moment in your UX, or for permissions with no implicit trigger such as
+`Remote` domains.
+
+This is a host feature: standalone, `request` rejects with
+`HostUnavailableError`, so gate the affordance on
+[`useIsHost`](/docs/host/use-is-host).
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useIsHost, usePermission } from "@use-truapi/react";
+
+function EnableApiAccess() {
+  const isHost = useIsHost();
+  const { request, isPending, error } = usePermission();
+
+  async function onEnable() {
+    const granted = await request({
+      tag: "Remote",
+      value: { domains: ["api.example.com"] },
+    });
+    if (!granted) console.warn("user declined API access");
+  }
+
+  if (!isHost) return null;
+
+  return (
+    <>
+      <button type="button" onClick={onEnable} disabled={isPending}>
+        {isPending ? "Waiting for approval…" : "Enable API access"}
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useIsHost, usePermission } from "@use-truapi/vue";
+
+const isHost = useIsHost();
+const { request, isPending, error } = usePermission();
+
+async function onEnable() {
+  const granted = await request({
+    tag: "Remote",
+    value: { domains: ["api.example.com"] },
+  });
+  if (!granted) console.warn("user declined API access");
+}
+</script>
+
+<template>
+  <template v-if="isHost">
+    <button type="button" :disabled="isPending" @click="onEnable">
+      {{ isPending ? "Waiting for approval…" : "Enable API access" }}
+    </button>
+    <p v-if="error" role="alert">{{ error.message }}</p>
+  </template>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useDevicePermission`](/docs/host/use-device-permission) covers device capabilities (camera, notifications, clipboard).
+- [`useResourceAllocation`](/docs/host/use-resource-allocation) batches RFC-0010 allowances into one prompt.
+- [`useTx`](/docs/tx/use-tx) requests `ChainSubmit` implicitly on first submit.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/usePermission.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/usePermission.md</include>

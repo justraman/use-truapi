@@ -47,10 +47,12 @@ function HostPayments() {
           data-testid="payment-topup"
           disabled={topUp.isPending}
           onClick={() =>
-            topUp.mutate({
-              amount: 1_000_000_000n, // 0.1 PAS
-              source: { tag: "ProductAccount", value: { derivationIndex: 0 } },
-            })
+            void topUp
+              .topUp(1_000_000_000n /* 0.1 PAS */, {
+                tag: "ProductAccount",
+                value: { derivationIndex: 0 },
+              })
+              .catch(() => {})
           }
         >
           Top up 0.1 PAS
@@ -61,13 +63,10 @@ function HostPayments() {
           disabled={!selected || request.isPending}
           onClick={() => {
             if (!selected) return;
-            request.mutate(
-              {
-                amount: 500_000_000n, // 0.05 PAS
-                destination: ss58ToH160(selected.address),
-              },
-              { onSuccess: ({ id }) => setLastPaymentId(id) },
-            );
+            void request
+              .request(500_000_000n /* 0.05 PAS */, ss58ToH160(selected.address))
+              .then(({ id }) => setLastPaymentId(id))
+              .catch(() => {});
           }}
         >
           Request 0.05 PAS to self

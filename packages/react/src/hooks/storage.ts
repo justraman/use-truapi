@@ -1,14 +1,17 @@
-import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import type { UseQueryResult } from "@tanstack/react-query";
 import {
   type AuthorizationStatus,
   type StoreResult,
   type UploadOptions,
   queryKeys,
 } from "@use-truapi/core";
+import { useCallback } from "react";
 import { useRuntime } from "../context";
 import {
   type MutationOptions,
+  type NamedMutation,
   type QueryOptions,
+  dropMutate,
   useTruapiMutation,
   useTruapiQuery,
 } from "../internal";
@@ -18,16 +21,27 @@ export interface UploadVariables {
   options?: UploadOptions;
 }
 
-/** Upload bytes to Bulletin-backed cloud storage: `mutate({ data })` → CID receipt. */
+/** Upload bytes to Bulletin-backed cloud storage: `upload(data)` → CID receipt. */
 export function useUpload(options?: {
   mutation?: MutationOptions<StoreResult, UploadVariables>;
-}): UseMutationResult<StoreResult, Error, UploadVariables> {
+}): NamedMutation<StoreResult, UploadVariables> & {
+  upload: (data: Uint8Array, uploadOptions?: UploadOptions) => Promise<StoreResult>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(
+  const mutation = useTruapiMutation(
     ({ data, options: uploadOptions }: UploadVariables) =>
       runtime.cloudStorage.upload(data, uploadOptions),
     options?.mutation,
   );
+  const { mutateAsync } = mutation;
+  return {
+    ...dropMutate(mutation),
+    upload: useCallback(
+      (data: Uint8Array, uploadOptions?: UploadOptions) =>
+        mutateAsync({ data, ...(uploadOptions !== undefined ? { options: uploadOptions } : {}) }),
+      [mutateAsync],
+    ),
+  };
 }
 
 /** Fetch CID content (host preimage lookup). Set `json` to parse. */

@@ -1,0 +1,110 @@
+---
+title: useEnsureAccountMapped
+description: Idempotent pallet-revive account mapping, required once before contract transactions
+---
+
+Before an account can call PolkaVM contracts, pallet-revive needs a one-time
+account mapping that gives the Substrate account an H160 identity.
+`useEnsureAccountMapped` wraps that step: `ensureMapped()` maps the connected
+account on the contract's chain and resolves with no data once done. Mutation
+state (`error`, `isPending`, `reset`) tracks the last attempt.
+
+The operation is idempotent: if the account is already mapped it completes
+without submitting anything, so it is safe to call defensively (for example
+before the first write in a session). It only needs to succeed once per
+account per chain.
+
+The manifest argument scopes the mapping to the same cached contract manager
+that [`useContract`](/docs/contracts/use-contract) uses, so pass the same
+`cdmJson` object.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useContract, useContractTx, useEnsureAccountMapped } from "@use-truapi/react";
+import { COUNTER_LIBRARY, cdmJson } from "./counter-contract";
+
+function Setup() {
+  const contract = useContract(cdmJson, COUNTER_LIBRARY);
+  const mapAccount = useEnsureAccountMapped(cdmJson);
+  const increment = useContractTx(contract.data, "increment");
+
+  async function onFirstIncrement() {
+    try {
+      await mapAccount.ensureMapped(); // no-op if already mapped
+      await increment.send();
+    } catch {
+      // failures are also reported in mapAccount.error / increment.error
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={!contract.data || mapAccount.isPending || increment.isPending}
+        onClick={onFirstIncrement}
+      >
+        {mapAccount.isPending ? "Mapping account…" : "Increment"}
+      </button>
+      {mapAccount.error && <p role="alert">{mapAccount.error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useContract, useContractTx, useEnsureAccountMapped } from "@use-truapi/vue";
+import { COUNTER_LIBRARY, cdmJson } from "./counter-contract";
+
+const contract = useContract(cdmJson, COUNTER_LIBRARY);
+const mapAccount = useEnsureAccountMapped(cdmJson);
+const increment = useContractTx(contract, "increment");
+
+async function onFirstIncrement() {
+  try {
+    await mapAccount.ensureMapped(); // no-op if already mapped
+    await increment.send();
+  } catch {
+    // failures are also reported in mapAccount.error / increment.error
+  }
+}
+</script>
+
+<template>
+  <button
+    type="button"
+    :disabled="!contract.data || mapAccount.isPending || increment.isPending"
+    @click="onFirstIncrement"
+  >
+    {{ mapAccount.isPending ? "Mapping account…" : "Increment" }}
+  </button>
+  <p v-if="mapAccount.error" role="alert">{{ mapAccount.error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useContractTx`](/docs/contracts/use-contract-tx) is the write this mapping unlocks.
+- [`useContract`](/docs/contracts/use-contract) takes the same `cdmJson` manifest.
+- [`useTx`](/docs/tx/use-tx) submits plain transactions, which don't require mapping.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useEnsureAccountMapped.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useEnsureAccountMapped.md</include>

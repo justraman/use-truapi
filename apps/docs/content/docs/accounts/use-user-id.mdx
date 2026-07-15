@@ -1,0 +1,82 @@
+---
+title: useUserId
+description: The user's primary DotNS username, or null
+---
+
+`useUserId` fetches the user's primary DotNS username from the Polkadot host.
+`data` is a `string | null`: inside a host container with a logged-in user it
+resolves the primary username; standalone, or when the user has not logged
+in, it resolves `null` (no error, just no identity).
+
+It is a plain query, not a subscription: the value is fetched once and
+cached. After a successful [`useLogin`](/docs/accounts/use-login), call
+`refetch()` to pick up the fresh identity.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useLogin, useUserId } from "@use-truapi/react";
+
+function Greeting() {
+  const { data: userId, isPending, refetch } = useUserId();
+  const { login } = useLogin({
+    mutation: { onSuccess: () => refetch() },
+  });
+
+  if (isPending) return <p>Checking identity…</p>;
+  if (!userId) {
+    return (
+      <button type="button" onClick={() => void login().catch(() => {})}>
+        Log in
+      </button>
+    );
+  }
+
+  return <p>Hello, {userId}!</p>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useLogin, useUserId } from "@use-truapi/vue";
+
+const { data: userId, isPending, refetch } = useUserId();
+const { login } = useLogin({
+  mutation: { onSuccess: () => refetch() },
+});
+
+function onLogin() {
+  void login().catch(() => {});
+}
+</script>
+
+<template>
+  <p v-if="isPending">Checking identity…</p>
+  <button v-else-if="!userId" type="button" @click="onLogin">Log in</button>
+  <p v-else>Hello, {{ userId }}!</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useLogin`](/docs/accounts/use-login) establishes the identity this hook reads.
+- [`useSelectedAccount`](/docs/accounts/use-selected-account) is the on-chain account, as opposed to the DotNS identity.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useUserId.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useUserId.md</include>

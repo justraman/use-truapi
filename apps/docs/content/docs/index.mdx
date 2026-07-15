@@ -1,0 +1,67 @@
+---
+title: Introduction
+description: React hooks and Vue composables for TruAPI products
+icon: BookOpen
+---
+
+**use-truapi** is one install for building TruAPI products: chain queries,
+accounts, transactions, smart contracts, chat, statements, payments and cloud
+storage, exposed as [React hooks](https://www.npmjs.com/package/@use-truapi/react)
+and [Vue composables](https://www.npmjs.com/package/@use-truapi/vue) over a
+shared core.
+
+```ts tab="React"
+import { useBalance, useTx } from "@use-truapi/react";
+
+function Transfer({ address }: { address: string }) {
+  const { data: balance } = useBalance(address);
+  const { submit, phase } = useTx();
+  // ...
+}
+```
+
+```ts tab="Vue"
+import { useBalance, useTx } from "@use-truapi/vue";
+
+const { data: balance } = useBalance(() => props.address);
+const { submit, phase } = useTx();
+```
+
+## What you get
+
+- One import site. `@use-truapi/react` (or `/vue`) re-exports everything you
+  need from the core: config, formatting utilities, error classes and types.
+- Caching and request deduplication through TanStack Query. Reads return
+  query results, actions return mutation state with a named method
+  (`connect`, `upload`, `submit`), and every hook accepts TanStack options.
+  This is the only place the docs mention it; it just works underneath.
+- Live data. Balances, block numbers, chat messages, statements and payment
+  state stream into the cache through shared subscriptions that detach when
+  the last consumer unmounts.
+- Host awareness. Apps run embedded in a Polkadot host or standalone in a
+  browser tab. Chain access, theming and storage adapt automatically.
+- Types end to end. Register your config once and every hook knows your
+  chain keys and PAPI descriptors.
+
+## Packages
+
+| Package | Description |
+| ------- | ----------- |
+| `@use-truapi/react` | React hooks (React ≥18) |
+| `@use-truapi/vue` | Vue composables (Vue ≥3.4) |
+| `@use-truapi/core` | Framework-agnostic runtime the adapters share |
+
+<Cards>
+  <Card href="/docs/getting-started" title="Getting started">
+    Install, configure the provider and run your first chain query.
+  </Card>
+  <Card href="/docs/chain/use-chain-query" title="Query the chain">
+    Typed one-shot reads and live subscriptions.
+  </Card>
+  <Card href="/docs/tx/use-tx" title="Submit transactions">
+    Sign, submit and watch transactions.
+  </Card>
+  <Card href="/docs/accounts/use-accounts" title="Connect wallets">
+    Wallet state, account selection and login.
+  </Card>
+</Cards>

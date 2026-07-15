@@ -35,10 +35,10 @@ export function StoragePanel() {
           data-testid="upload-submit"
           disabled={upload.isPending || draft === ""}
           onClick={() =>
-            upload.mutate(
-              { data: new TextEncoder().encode(draft) },
-              { onSuccess: (result) => setLastCid(result.cid?.toString()) },
-            )
+            void upload
+              .upload(new TextEncoder().encode(draft))
+              .then((result) => setLastCid(result.cid?.toString()))
+              .catch(() => {})
           }
         >
           {upload.isPending ? "Uploading…" : "Upload"}

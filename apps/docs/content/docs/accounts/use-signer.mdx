@@ -1,0 +1,90 @@
+---
+title: useSigner
+description: The PolkadotSigner of the selected account, or null
+---
+
+`useSigner` returns the `PolkadotSigner` for the currently selected account,
+`null` until a wallet is connected. It reads the same shared store as
+[`useAccounts`](/docs/accounts/use-accounts) and
+[`useSelectedAccount`](/docs/accounts/use-selected-account): connecting,
+switching accounts or disconnecting immediately yields the new signer (or
+`null`).
+
+You rarely need this hook. [`useTx`](/docs/tx/use-tx) and the other write
+hooks pull the signer from the runtime themselves and handle host permissions
+for you. Reach for `useSigner` when handing the signer to raw `polkadot-api`
+calls or another library that expects a `PolkadotSigner`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useSigner, useTypedApi } from "@use-truapi/react";
+import { Binary } from "polkadot-api";
+
+function RawRemark() {
+  const signer = useSigner();
+  const api = useTypedApi();
+
+  async function onRemark() {
+    if (!signer || !api) return;
+    const tx = api.tx.System.remark({ remark: Binary.fromText("hello") });
+    await tx.signAndSubmit(signer);
+  }
+
+  return (
+    <button type="button" onClick={onRemark} disabled={!signer}>
+      {signer ? "Submit remark" : "Connect a wallet first"}
+    </button>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useSigner, useTypedApi } from "@use-truapi/vue";
+import { Binary } from "polkadot-api";
+
+const signer = useSigner();
+const api = useTypedApi();
+
+async function onRemark() {
+  if (!signer.value || !api.value) return;
+  const tx = api.value.tx.System.remark({ remark: Binary.fromText("hello") });
+  await tx.signAndSubmit(signer.value);
+}
+</script>
+
+<template>
+  <button type="button" :disabled="!signer" @click="onRemark">
+    {{ signer ? "Submit remark" : "Connect a wallet first" }}
+  </button>
+</template>
+```
+
+The hook returns a `ComputedRef`: use `signer.value` in script, it unwraps
+automatically in templates.
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useTx`](/docs/tx/use-tx) runs the full transaction lifecycle without touching the signer directly.
+- [`useSignRaw`](/docs/accounts/use-sign-raw) signs arbitrary bytes with the selected account.
+- [`useSelectedAccount`](/docs/accounts/use-selected-account) is the account this signer belongs to.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useSigner.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useSigner.md</include>

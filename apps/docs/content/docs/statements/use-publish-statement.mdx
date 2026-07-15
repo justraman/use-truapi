@@ -1,0 +1,132 @@
+---
+title: usePublishStatement
+description: Publish small JSON payloads to the app topic
+---
+
+`usePublishStatement` publishes ephemeral JSON payloads to your app's
+statement-store topic. Call `publish(data, options?)` with any
+JSON-serializable value; subscribers on the same topic (see
+[`useStatements`](/docs/statements/use-statements)) receive it within
+moments. Mutation state (`data`, `error`, `isPending`, `reset`) tracks the
+last publish.
+
+The resolved `boolean` is data, not an exception: `true` means the host's
+statement store accepted the statement, `false` means it was undeliverable
+(the store rejected it, or the app runs standalone). Thrown errors are
+reserved for real failures, such as a payload whose JSON encoding exceeds
+the 512 byte statement limit.
+
+## Usage
+
+A publish and subscribe round trip: every mounted `PingBoard` sees every
+ping, including its own.
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { usePublishStatement, useStatements } from "@use-truapi/react";
+
+interface Ping {
+  from: string;
+  sentAt: number;
+}
+
+function PingBoard({ name }: { name: string }) {
+  const { data: pings } = useStatements<Ping>();
+  const { publish, isPending, error } = usePublishStatement<Ping>();
+
+  async function onPing() {
+    const delivered = await publish({ from: name, sentAt: Date.now() });
+    if (!delivered) console.warn("ping not delivered (rejected or standalone)");
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onPing} disabled={isPending}>
+        Ping everyone
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+      <ul>
+        {pings?.map((p, i) => (
+          <li key={i}>
+            {p.data.from} pinged at {new Date(p.data.sentAt).toLocaleTimeString()}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { usePublishStatement, useStatements } from "@use-truapi/vue";
+
+interface Ping {
+  from: string;
+  sentAt: number;
+}
+
+const props = defineProps<{ name: string }>();
+
+const { data: pings } = useStatements<Ping>();
+const { publish, isPending, error } = usePublishStatement<Ping>();
+
+async function onPing() {
+  const delivered = await publish({ from: props.name, sentAt: Date.now() });
+  if (!delivered) console.warn("ping not delivered (rejected or standalone)");
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onPing">
+    Ping everyone
+  </button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+  <ul>
+    <li v-for="(p, i) in pings" :key="i">
+      {{ p.data.from }} pinged at {{ new Date(p.data.sentAt).toLocaleTimeString() }}
+    </li>
+  </ul>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+The second argument forwards `PublishOptions` to the store: scope with
+`topic2` (subscribers only see it if they filter on the same value) or
+override the time-to-live with `ttlSeconds`:
+
+```ts
+await publish(
+  { from: "alice", sentAt: Date.now() },
+  { topic2: "room-42", ttlSeconds: 60 },
+);
+```
+
+In a fire-and-forget handler, `void publish(data).catch(() => {})` is
+enough; failures also land in `error`.
+
+## See also
+
+- [`useStatements`](/docs/statements/use-statements) subscribes to what you (and everyone else) publish.
+- [`useStatementChannel`](/docs/statements/use-statement-channel) is the better fit for last-write-wins values.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/usePublishStatement.md</include>
+
+<include>../../../generated/react/interfaces/PublishStatementVariables.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/usePublishStatement.md</include>
+
+<include>../../../generated/vue/interfaces/PublishStatementVariables.md</include>

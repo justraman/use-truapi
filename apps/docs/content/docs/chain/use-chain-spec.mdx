@@ -1,0 +1,88 @@
+---
+title: useChainSpec
+description: Chain name and properties as reported by the host
+---
+
+`useChainSpec` asks the host (Polkadot Desktop or Mobile) for a chain's spec,
+looked up by the chain's configured `genesisHash`. `data` is a `ChainSpec`
+with the human-readable `name`, parsed `properties` (`ss58Format`,
+`tokenDecimals`, `tokenSymbol`, plus chain-specific extras) and the raw JSON
+string in `propertiesRaw`. `properties` is `null` if the host's JSON couldn't
+be parsed.
+
+This is host-only information: running standalone the hook resolves with
+`null` instead of erroring, so guard on the data before rendering. The spec
+is fetched once per chain; it doesn't change at runtime.
+
+A typical use is feeding `tokenDecimals` and `tokenSymbol` into
+`useFormattedBalance` instead of hard-coding them.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useChainSpec } from "@use-truapi/react";
+
+function ChainBadge() {
+  const { data: spec, isPending, error } = useChainSpec();
+
+  if (isPending) return <p>Loading chain info…</p>;
+  if (error) return <p>Failed to load chain spec: {error.message}</p>;
+  if (!spec) return <p>Chain spec unavailable (running standalone).</p>;
+
+  return (
+    <p>
+      {spec.name}: token {spec.properties?.tokenSymbol} with{" "}
+      {spec.properties?.tokenDecimals} decimals
+    </p>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useChainSpec } from "@use-truapi/vue";
+
+const { data: spec, isPending, error } = useChainSpec();
+</script>
+
+<template>
+  <p v-if="isPending">Loading chain info…</p>
+  <p v-else-if="error">Failed to load chain spec: {{ error.message }}</p>
+  <p v-else-if="!spec">Chain spec unavailable (running standalone).</p>
+  <p v-else>
+    {{ spec.name }}: token {{ spec.properties?.tokenSymbol }} with
+    {{ spec.properties?.tokenDecimals }} decimals
+  </p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+To get the spec of a chain other than the default, pass its key; the host is
+asked for that chain's configured `genesisHash`:
+
+```ts
+const { data: peopleSpec } = useChainSpec({ chain: "people" });
+```
+
+## See also
+
+- [`useChainClient`](/docs/chain/use-chain-client) also behaves differently between host and standalone.
+- [`useBalance`](/docs/chain/use-balance) pairs with the spec's decimals and symbol for display.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useChainSpec.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useChainSpec.md</include>

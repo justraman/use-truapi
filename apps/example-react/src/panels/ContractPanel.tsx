@@ -45,7 +45,7 @@ export function ContractPanel() {
           type="button"
           data-testid="counter-increment"
           disabled={!contract.data || increment.isPending}
-          onClick={() => increment.mutate()}
+          onClick={() => void increment.send().catch(() => {})}
         >
           {increment.isPending ? "Incrementing…" : "Increment"}
         </button>
@@ -53,7 +53,7 @@ export function ContractPanel() {
           type="button"
           data-testid="counter-add"
           disabled={!contract.data || addFive.isPending}
-          onClick={() => addFive.mutate([5n])}
+          onClick={() => void addFive.send([5n]).catch(() => {})}
         >
           Add 5
         </button>
@@ -61,7 +61,7 @@ export function ContractPanel() {
           type="button"
           data-testid="map-account"
           disabled={mapAccount.isPending}
-          onClick={() => mapAccount.mutate()}
+          onClick={() => void mapAccount.ensureMapped().catch(() => {})}
         >
           Map account
         </button>

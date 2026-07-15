@@ -1,0 +1,21 @@
+{
+  "$schema": "https://typedoc-plugin-markdown.org/schema.json",
+  "plugin": ["typedoc-plugin-markdown"],
+  "entryPoints": ["../../packages/vue/src/index.ts"],
+  "tsconfig": "../../packages/vue/tsconfig.json",
+  "out": "generated/vue",
+  "readme": "none",
+  "outputFileStrategy": "members",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": false,
+  "disableSources": true,
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "hidePageTitle": true,
+  "useCodeBlocks": true,
+  "parametersFormat": "table",
+  "enumMembersFormat": "table",
+  "sanitizeComments": true,
+  "logLevel": "Warn"
+}

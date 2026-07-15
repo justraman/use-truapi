@@ -4,14 +4,35 @@
     {
       "name": "example-react",
       "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "--cwd", "apps/example-react", "dev"],
+      "runtimeArgs": [
+        "run",
+        "--cwd",
+        "apps/example-react",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "example-vue",
       "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "--cwd", "apps/example-vue", "dev"],
+      "runtimeArgs": [
+        "run",
+        "--cwd",
+        "apps/example-vue",
+        "dev"
+      ],
       "port": 5174
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "--cwd",
+        "apps/docs",
+        "dev"
+      ],
+      "port": 3100
     }
   ]
 }

@@ -5,8 +5,9 @@ import {
   type LiveListQueryResult,
   type MaybeGetter,
   type MutationOptions,
-  type MutationResult,
+  type NamedMutation,
   type QueryOptions,
+  dropMutate,
   toGetter,
   useLiveListQuery,
   useTruapiMutation,
@@ -45,19 +46,29 @@ export interface PublishStatementVariables<T> {
 }
 
 /**
- * Publish JSON payloads (≤512 bytes) to the app topic:
- * `mutate({ data })`. Resolves `false` when the store rejects the statement
- * or the app runs standalone.
+ * Publish JSON payloads (≤512 bytes) to the app topic: `publish(data)`.
+ * Resolves `false` when the store rejects the statement or the app runs
+ * standalone.
  */
 export function usePublishStatement<T = unknown>(options?: {
   mutation?: MutationOptions<boolean, PublishStatementVariables<T>>;
-}): MutationResult<boolean, PublishStatementVariables<T>> {
+}): NamedMutation<boolean, PublishStatementVariables<T>> & {
+  publish: (data: T, publishOptions?: PublishOptions) => Promise<boolean>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(
+  const mutation = useTruapiMutation(
     ({ data, options: publishOptions }: PublishStatementVariables<T>) =>
       runtime.statements.publish(data, publishOptions),
     options?.mutation,
   );
+  return {
+    ...dropMutate(mutation),
+    publish: (data: T, publishOptions?: PublishOptions) =>
+      mutation.mutateAsync({
+        data,
+        ...(publishOptions !== undefined ? { options: publishOptions } : {}),
+      }),
+  };
 }
 
 export interface StatementChannel<T> {

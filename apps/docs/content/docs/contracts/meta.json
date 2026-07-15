@@ -1,0 +1,11 @@
+{
+  "title": "Contracts",
+  "description": "PolkaVM smart contracts: typed handles, reads and transactions",
+  "pages": [
+    "use-contract",
+    "use-contract-at",
+    "use-contract-query",
+    "use-contract-tx",
+    "use-ensure-account-mapped"
+  ]
+}

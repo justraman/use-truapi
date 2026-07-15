@@ -1,0 +1,112 @@
+---
+title: useChatBot
+description: Register a bot identity for posting into chat rooms
+---
+
+`useChatBot` registers a bot identity (a `botId`, display `name` and `icon`
+as a URL or base64 data URI) that your product can post under in chat rooms.
+`data` resolves to `"New"` or `"Exists"`, exactly like
+[`useChatRoom`](/docs/chat/use-chat-room). The result is cached per `botId`,
+so multiple components mounting the same bot share one registration, and
+re-registering an existing bot simply resolves `"Exists"`.
+
+Chat is host-only. Running standalone the query result settles in the error
+state with `HostUnavailableError`; gate bot UI with
+[`useIsHost`](/docs/host/use-is-host).
+
+A typical bot registers its identity, posts messages carrying action
+buttons, and reacts to the resulting `ActionTriggered` events via
+[`useChatActions`](/docs/chat/use-chat-actions).
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useChatBot, useSendChatMessage } from "@use-truapi/react";
+
+function DiceBot({ roomId }: { roomId: string }) {
+  const { data: status, error } = useChatBot({
+    botId: "dice-bot",
+    name: "Dice",
+    icon: "https://example.com/dice.png",
+  });
+  const { send } = useSendChatMessage(roomId);
+
+  function offerRoll() {
+    void send({
+      tag: "Actions",
+      value: {
+        text: "Feeling lucky?",
+        actions: [{ actionId: "roll", title: "Roll the dice" }],
+        layout: "Column",
+      },
+    }).catch(() => {});
+  }
+
+  if (error) return <p>Chat unavailable: {error.message}</p>;
+  return (
+    <button type="button" onClick={offerRoll} disabled={status === undefined}>
+      Post roll prompt
+    </button>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useChatBot, useSendChatMessage } from "@use-truapi/vue";
+
+const props = defineProps<{ roomId: string }>();
+
+const { data: status, error } = useChatBot({
+  botId: "dice-bot",
+  name: "Dice",
+  icon: "https://example.com/dice.png",
+});
+const { send } = useSendChatMessage(() => props.roomId);
+
+function offerRoll() {
+  void send({
+    tag: "Actions",
+    value: {
+      text: "Feeling lucky?",
+      actions: [{ actionId: "roll", title: "Roll the dice" }],
+      layout: "Column",
+    },
+  }).catch(() => {});
+}
+</script>
+
+<template>
+  <p v-if="error">Chat unavailable: {{ error.message }}</p>
+  <button v-else type="button" :disabled="status === undefined" @click="offerRoll">
+    Post roll prompt
+  </button>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+See [`useChatActions`](/docs/chat/use-chat-actions) for the other half of
+this bot: reacting when a user presses the button.
+
+## See also
+
+- [`useChatRoom`](/docs/chat/use-chat-room) registers the room the bot posts into.
+- [`useSendChatMessage`](/docs/chat/use-send-chat-message) posts messages, including action buttons.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useChatBot.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useChatBot.md</include>

@@ -1,0 +1,94 @@
+---
+title: useDeriveEntropy
+description: Derive stable 32-byte secrets from the user's wallet (RFC-0007)
+---
+
+`useDeriveEntropy` derives deterministic entropy from the user's wallet
+(RFC-0007). Call `derive(key)` with a `Uint8Array`; it resolves to 32 bytes
+that are stable across sessions and devices: the same key with the same
+wallet always yields the same bytes, while a different key or a different
+wallet yields unrelated ones. The hook also returns mutation state
+(`isPending`, `error`, `data`, `reset`).
+
+That property makes it the building block for secrets you never have to
+store or sync: derive an encryption key for user data, a seed for an
+app-specific identity, or a deterministic salt, and re-derive it on any
+device where the wallet is available. Use distinct, namespaced keys
+(`my-app/settings-encryption/v1`) so unrelated features get unrelated
+entropy.
+
+This is a host feature: standalone, `derive` rejects with
+`HostUnavailableError`, so gate it on [`useIsHost`](/docs/host/use-is-host).
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useDeriveEntropy } from "@use-truapi/react";
+
+function UnlockNotes({ onKey }: { onKey: (key: Uint8Array) => void }) {
+  const { derive, isPending, error } = useDeriveEntropy();
+
+  async function onUnlock() {
+    const entropy = await derive(
+      new TextEncoder().encode("my-app/notes-encryption/v1"),
+    );
+    onKey(entropy); // 32 bytes, feed into your cipher of choice
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onUnlock} disabled={isPending}>
+        {isPending ? "Deriving key…" : "Unlock notes"}
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useDeriveEntropy } from "@use-truapi/vue";
+
+const emit = defineEmits<{ key: [entropy: Uint8Array] }>();
+const { derive, isPending, error } = useDeriveEntropy();
+
+async function onUnlock() {
+  const entropy = await derive(
+    new TextEncoder().encode("my-app/notes-encryption/v1"),
+  );
+  emit("key", entropy); // 32 bytes, feed into your cipher of choice
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onUnlock">
+    {{ isPending ? "Deriving key…" : "Unlock notes" }}
+  </button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useIsHost`](/docs/host/use-is-host) gates the affordance when the app also runs standalone.
+- [`useHostStorage`](/docs/host/use-host-storage) is a natural place to keep data encrypted with a derived key.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useDeriveEntropy.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useDeriveEntropy.md</include>

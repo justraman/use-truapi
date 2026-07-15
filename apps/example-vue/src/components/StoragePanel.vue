@@ -17,14 +17,12 @@ const fetchedText = computed(() =>
 );
 
 function onUpload() {
-  upload.mutate(
-    { data: new TextEncoder().encode(draft.value) },
-    {
-      onSuccess: (result) => {
-        lastCid.value = result.cid?.toString();
-      },
-    },
-  );
+  void upload
+    .upload(new TextEncoder().encode(draft.value))
+    .then((result) => {
+      lastCid.value = result.cid?.toString();
+    })
+    .catch(() => {});
 }
 </script>
 

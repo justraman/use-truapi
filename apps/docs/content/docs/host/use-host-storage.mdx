@@ -1,0 +1,122 @@
+---
+title: useHostStorage
+description: Product-scoped JSON key-value storage with a standalone fallback
+---
+
+`useHostStorage` reads and writes a product-scoped key-value store. It
+returns a query result whose `data` is the JSON-parsed value (`T | null`,
+`null` when the key is unset), extended with two writers: `set(value)`
+serializes and persists, `remove()` deletes the key.
+
+The backing store follows the environment: host localStorage inside a
+container (persisted by the host, scoped to your product), browser
+localStorage standalone. The hook behaves identically in both, making this
+one of the few host APIs that needs no gating.
+
+Writes update the cached value in place, so every component reading the same
+key sees the new value immediately, with no refetch and no flicker. Values
+are JSON round-tripped: store plain serializable data (no `bigint`, `Date`
+or `Uint8Array`).
+
+## Usage
+
+Type the stored value with the generic parameter to get a typed `data` and a
+typed `set`.
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useHostStorage } from "@use-truapi/react";
+
+interface Settings {
+  currency: "USD" | "EUR";
+  compactMode: boolean;
+}
+
+const DEFAULTS: Settings = { currency: "USD", compactMode: false };
+
+function SettingsPanel() {
+  const { data, isPending, set, remove } = useHostStorage<Settings>("settings");
+  const settings = data ?? DEFAULTS;
+
+  if (isPending) return <p>Loading settings…</p>;
+
+  return (
+    <form>
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.compactMode}
+          onChange={(e) => void set({ ...settings, compactMode: e.target.checked })}
+        />
+        Compact mode
+      </label>
+      <button type="button" onClick={() => void remove()}>
+        Reset to defaults
+      </button>
+    </form>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useHostStorage } from "@use-truapi/vue";
+import { computed } from "vue";
+
+interface Settings {
+  currency: "USD" | "EUR";
+  compactMode: boolean;
+}
+
+const DEFAULTS: Settings = { currency: "USD", compactMode: false };
+
+const { data, isPending, set, remove } = useHostStorage<Settings>("settings");
+const settings = computed(() => data.value ?? DEFAULTS);
+
+function toggleCompact(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  void set({ ...settings.value, compactMode: checked });
+}
+</script>
+
+<template>
+  <p v-if="isPending">Loading settings…</p>
+  <form v-else>
+    <label>
+      <input type="checkbox" :checked="settings.compactMode" @change="toggleCompact" />
+      Compact mode
+    </label>
+    <button type="button" @click="remove()">Reset to defaults</button>
+  </form>
+</template>
+```
+
+The key can be a getter (`() => "draft:" + props.id`); the query re-runs and
+the writers retarget when it changes.
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useDeriveEntropy`](/docs/host/use-derive-entropy) derives a wallet-bound key to encrypt stored data.
+- [`useHostMode`](/docs/host/use-host-mode) tells you which backing store is in use.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useHostStorage.md</include>
+
+<include>../../../generated/react/type-aliases/HostStorageValue.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useHostStorage.md</include>
+
+<include>../../../generated/vue/type-aliases/HostStorageValue.md</include>

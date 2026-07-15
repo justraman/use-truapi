@@ -1,0 +1,189 @@
+---
+title: Getting started
+description: Install use-truapi, configure the provider and run your first query
+icon: Rocket
+---
+
+## Installation
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```bash
+bun add @use-truapi/react @tanstack/react-query polkadot-api
+```
+
+</Tab>
+<Tab value="Vue">
+
+```bash
+bun add @use-truapi/vue @tanstack/vue-query polkadot-api
+```
+
+</Tab>
+</Tabs>
+
+You also need PAPI descriptors for the chains you talk to, either generated
+with `papi add` or prebuilt ones such as `@parity/product-sdk-descriptors`.
+
+## Define your config
+
+`defineConfig` describes your chains plus optional feature config (statements,
+cloud storage, product account). The `const` generic preserves your chain
+keys, which is what makes every hook chain-typed later.
+
+```ts title="config.ts"
+import { paseo_asset_hub } from "@parity/product-sdk-descriptors/paseo-asset-hub";
+import { defineConfig } from "@use-truapi/react"; // or "@use-truapi/vue"
+
+export const config = defineConfig({
+  chains: {
+    assetHub: {
+      descriptor: paseo_asset_hub,
+      genesisHash: "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
+      // Used only when running standalone (outside a Polkadot host):
+      wsUrls: ["wss://paseo-asset-hub-next-rpc.polkadot.io"],
+    },
+  },
+  dappName: "my-app",
+  statements: { appName: "my-app" },
+  cloudStorage: { environment: "paseo" },
+});
+```
+
+### Register the config type
+
+Augment `Register` once and every hook gets typed chain keys and typed PAPI
+apis. `useTypedApi({ chain: "assetHub" })` autocompletes and
+`useChainQuery((api) => ...)` knows your pallets:
+
+```ts title="config.ts"
+declare module "@use-truapi/react" {
+  interface Register {
+    config: typeof config;
+  }
+}
+```
+
+## Set up the provider
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+Wrap your app in `TruapiProvider`:
+
+```tsx title="main.tsx"
+import { TruapiProvider } from "@use-truapi/react";
+import { createRoot } from "react-dom/client";
+import { App } from "./App";
+import { config } from "./config";
+
+createRoot(document.getElementById("root")!).render(
+  <TruapiProvider config={config}>
+    <App />
+  </TruapiProvider>,
+);
+```
+
+If you already use TanStack Query, render `TruapiProvider` inside your
+`QueryClientProvider` and it reuses your client. Otherwise it creates one
+for you. See [Provider & runtime](/docs/provider) for details.
+
+</Tab>
+<Tab value="Vue">
+
+Install `TruapiPlugin`:
+
+```ts title="main.ts"
+import { TruapiPlugin } from "@use-truapi/vue";
+import { createApp } from "vue";
+import App from "./App.vue";
+import { config } from "./config";
+
+createApp(App).use(TruapiPlugin, { config }).mount("#app");
+```
+
+If your app already uses TanStack Query the plugin reuses it, otherwise it
+installs a client for you. See [Provider & runtime](/docs/provider).
+
+</Tab>
+</Tabs>
+
+## Your first query
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useBlockNumber, useBalance, useFormattedBalance } from "@use-truapi/react";
+
+function Status({ address }: { address: string }) {
+  const { data: blockNumber } = useBlockNumber();
+  const { data: balance, isPending } = useBalance(address);
+  const free = useFormattedBalance(balance?.free, { decimals: 10, symbol: "PAS" });
+
+  if (isPending) return <p>Loading…</p>;
+  return (
+    <p>
+      Block #{blockNumber}, balance: {free}
+    </p>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useBlockNumber, useBalance, useFormattedBalance } from "@use-truapi/vue";
+
+const props = defineProps<{ address: string }>();
+
+const { data: blockNumber } = useBlockNumber();
+const { data: balance, isPending } = useBalance(() => props.address);
+const free = useFormattedBalance(
+  () => balance.value?.free,
+  { decimals: 10, symbol: "PAS" },
+);
+</script>
+
+<template>
+  <p v-if="isPending">Loading…</p>
+  <p v-else>Block #{{ blockNumber }}, balance: {{ free }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+Both hooks are live: the block number and balance update as new blocks
+arrive, through one shared subscription per query key.
+
+## Reads and actions
+
+Every hook follows one of two shapes:
+
+- Reads return a query result: `data`, `error`, `isPending`, `refetch`.
+  Pass options through `query`, for example
+  `useBalance(address, { query: { refetchInterval: 30_000 } })`.
+- Actions return mutation state plus a named method: `connect()`, `login()`,
+  `submit()`, `upload()`, `publish()`. The method returns a promise; `data`,
+  `error`, `isPending` and `reset` track the last call. Pass callbacks
+  through `mutation`, for example
+  `useLogin({ mutation: { onSuccess: (r) => console.log(r) } })`.
+
+## Host vs standalone
+
+Your app runs in one of two modes, detected at runtime:
+
+- Host: embedded in a Polkadot host (Desktop/Mobile). Chain connections
+  route through the host; signing, permissions, chat, statements, payments
+  and notifications are available.
+- Standalone: a plain browser tab. Chain connections use your configured
+  `wsUrls`. Host-only features either stay inert (statements, theme follows
+  `prefers-color-scheme`) or throw `HostUnavailableError` (payments, chat,
+  notifications).
+
+Gate host-only UI with [`useHostMode`](/docs/host/use-host-mode) or
+[`useIsHost`](/docs/host/use-is-host).

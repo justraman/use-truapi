@@ -1,0 +1,19 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "getting-started",
+    "provider",
+    "---Hooks---",
+    "chain",
+    "accounts",
+    "tx",
+    "contracts",
+    "host",
+    "chat",
+    "statements",
+    "payments",
+    "storage",
+    "format"
+  ]
+}

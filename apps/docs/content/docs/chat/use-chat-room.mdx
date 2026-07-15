@@ -1,0 +1,86 @@
+---
+title: useChatRoom
+description: Register a chat room with the host, idempotently
+---
+
+`useChatRoom` registers a chat room your product hosts. `data` resolves to
+`"New"` (the room was just created) or `"Exists"` (it was already
+registered). Registration is idempotent: the result is cached per `roomId`
+for the runtime's lifetime, so mounting the hook from several components
+performs a single host call, and re-registering an existing room is harmless
+anyway, it just resolves `"Exists"`.
+
+Chat is host-only. Running standalone (outside a Polkadot host) the query
+result settles in the error state with `HostUnavailableError`; gate chat UI
+with [`useIsHost`](/docs/host/use-is-host), or render the error as a
+fallback.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useChatRoom } from "@use-truapi/react";
+
+const room = {
+  roomId: "support",
+  name: "Support",
+  icon: "https://example.com/support.png",
+};
+
+function SupportRoom() {
+  const { data: status, isPending, error } = useChatRoom(room);
+
+  if (isPending) return <p>Opening room…</p>;
+  if (error) return <p>Chat unavailable: {error.message}</p>;
+
+  return <p>Room ready ({status === "New" ? "just created" : "already existed"}).</p>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useChatRoom } from "@use-truapi/vue";
+
+const room = {
+  roomId: "support",
+  name: "Support",
+  icon: "https://example.com/support.png",
+};
+
+const { data: status, isPending, error } = useChatRoom(room);
+</script>
+
+<template>
+  <p v-if="isPending">Opening room…</p>
+  <p v-else-if="error">Chat unavailable: {{ error.message }}</p>
+  <p v-else>Room ready ({{ status === "New" ? "just created" : "already existed" }}).</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+Once registration has settled, wire up
+[`useChatMessages`](/docs/chat/use-chat-messages) and
+[`useSendChatMessage`](/docs/chat/use-send-chat-message) against the same
+`roomId` for a working chat panel.
+
+## See also
+
+- [`useChatBot`](/docs/chat/use-chat-bot) registers a bot identity for posting into rooms.
+- [`useChatRooms`](/docs/chat/use-chat-rooms) lists the rooms the product participates in, live.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useChatRoom.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useChatRoom.md</include>

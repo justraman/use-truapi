@@ -1,0 +1,89 @@
+---
+title: useStorageAuthorization
+description: Cloud storage quota and authorization for the selected or given account
+---
+
+`useStorageAuthorization` checks whether an account is authorized to store
+data on the Bulletin chain and how much quota remains. `data` is an
+`AuthorizationStatus`: `authorized`, plus the remaining transactions, the
+remaining bytes and the expiration block (all zero when not authorized).
+
+With no argument the hook checks the selected account; pass an address to
+check any other account. The result is cached per address. If neither an
+address nor a selected account is available the query errors, so gate the
+component behind a connect step or render `error.message`.
+
+Use it to warn before an [`useUpload`](/docs/storage/use-upload) that would
+fail: an unauthorized account or exhausted quota rejects the upload on chain.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useStorageAuthorization } from "@use-truapi/react";
+
+function StorageQuota() {
+  const { data: status, isPending, error } = useStorageAuthorization();
+
+  if (isPending) return <p>Checking quota…</p>;
+  if (error) return <p>Quota check failed: {error.message}</p>;
+  if (!status.authorized) return <p>This account is not authorized to store data.</p>;
+
+  return (
+    <p>
+      Quota: {status.remainingTransactions} uploads /{" "}
+      {status.remainingBytes.toString()} bytes, until block {status.expiration}
+    </p>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useStorageAuthorization } from "@use-truapi/vue";
+
+const { data: status, isPending, error } = useStorageAuthorization();
+</script>
+
+<template>
+  <p v-if="isPending">Checking quota…</p>
+  <p v-else-if="error">Quota check failed: {{ error.message }}</p>
+  <p v-else-if="!status?.authorized">This account is not authorized to store data.</p>
+  <p v-else>
+    Quota: {{ status.remainingTransactions }} uploads /
+    {{ status.remainingBytes }} bytes, until block {{ status.expiration }}
+  </p>
+</template>
+```
+
+Pass a getter (`() => account.value?.address`) when checking a reactive
+address, so the check re-runs when the value changes.
+
+</Tab>
+</Tabs>
+
+To check an account other than the selected one, pass its address:
+
+```ts
+const status = useStorageAuthorization("5Grw…utQY");
+```
+
+## See also
+
+- [`useUpload`](/docs/storage/use-upload) performs the uploads this quota governs.
+- [`useCid`](/docs/storage/use-cid) fetches stored content back by CID.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useStorageAuthorization.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useStorageAuthorization.md</include>

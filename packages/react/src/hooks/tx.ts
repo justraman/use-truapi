@@ -1,4 +1,3 @@
-import type { UseMutationResult } from "@tanstack/react-query";
 import type {
   AnyBatchCall,
   AnyTx,
@@ -10,7 +9,12 @@ import type {
 } from "@use-truapi/core";
 import { useCallback, useState } from "react";
 import { type ChainKey, type ResolvedChains, useRuntime } from "../context";
-import { type MutationOptions, useTruapiMutation } from "../internal";
+import {
+  type MutationOptions,
+  type NamedMutation,
+  dropMutate,
+  useTruapiMutation,
+} from "../internal";
 
 export interface TxVariables<K extends ChainKey, TBuild, TOptions> {
   build: (api: TypedApiOf<ResolvedChains, K>) => TBuild | Promise<TBuild>;
@@ -18,10 +22,10 @@ export interface TxVariables<K extends ChainKey, TBuild, TOptions> {
 }
 
 export interface UseTxResult<K extends ChainKey>
-  extends Omit<UseMutationResult<TxResult, Error, TxVariables<K, AnyTx, SubmitOptions>>, "reset"> {
+  extends Omit<NamedMutation<TxResult, TxVariables<K, AnyTx, SubmitOptions>>, "reset"> {
   /**
    * Build against the typed api and submit; resolves when the tx reaches
-   * best-block (or `waitFor: "finalized"`). Sugar for `mutateAsync`.
+   * best-block (or `waitFor: "finalized"`).
    */
   submit: (
     build: (api: TypedApiOf<ResolvedChains, K>) => AnyTx | Promise<AnyTx>,
@@ -80,7 +84,7 @@ export function useTx<K extends ChainKey = ChainKey>(options?: {
 
   const { mutateAsync, reset: resetMutation } = mutation;
   return {
-    ...mutation,
+    ...dropMutate(mutation),
     phase,
     submit: useCallback(
       (build, submitOptions) => mutateAsync({ build, options: submitOptions }),
@@ -95,11 +99,7 @@ export function useTx<K extends ChainKey = ChainKey>(options?: {
 
 export interface UseBatchTxResult<K extends ChainKey>
   extends Omit<
-    UseMutationResult<
-      TxResult,
-      Error,
-      TxVariables<K, AnyBatchCall[], SubmitOptions & { mode?: BatchMode }>
-    >,
+    NamedMutation<TxResult, TxVariables<K, AnyBatchCall[], SubmitOptions & { mode?: BatchMode }>>,
     "reset"
   > {
   submit: (
@@ -148,7 +148,7 @@ export function useBatchTx<K extends ChainKey = ChainKey>(options?: {
 
   const { mutateAsync, reset: resetMutation } = mutation;
   return {
-    ...mutation,
+    ...dropMutate(mutation),
     phase,
     submit: useCallback(
       (build, submitOptions) => mutateAsync({ build, options: submitOptions }),

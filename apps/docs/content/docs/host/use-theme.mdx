@@ -1,0 +1,74 @@
+---
+title: useTheme
+description: Live theme, from the host when embedded and prefers-color-scheme standalone
+---
+
+`useTheme` returns the current `ThemeState` and keeps it live. Embedded in a
+host it follows the container's light or dark setting, including custom host
+themes, and updates the moment the user switches. Standalone it tracks the
+`prefers-color-scheme` media query instead; `source` tells you which of the
+two you are getting, and `custom` is always `null` outside a host.
+
+Before host detection resolves the hook reports the system theme, then flips
+to the host theme once the subscription attaches, so there is always a usable
+value to render with.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useTheme } from "@use-truapi/react";
+import { useEffect } from "react";
+
+function ThemeSync() {
+  const theme = useTheme();
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme.variant;
+  }, [theme.variant]);
+
+  return theme.custom ? <span>Host theme: {theme.custom}</span> : null;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useTheme } from "@use-truapi/vue";
+import { watchEffect } from "vue";
+
+const theme = useTheme();
+
+watchEffect(() => {
+  document.documentElement.dataset.theme = theme.value.variant;
+});
+</script>
+
+<template>
+  <span v-if="theme.custom">Host theme: {{ theme.custom }}</span>
+</template>
+```
+
+The composable returns a `ShallowRef`: use `theme.value.variant` in script,
+plain `theme.variant` in templates.
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useHostMode`](/docs/host/use-host-mode) is the detection the theme source follows.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useTheme.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useTheme.md</include>

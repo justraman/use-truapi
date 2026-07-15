@@ -1,11 +1,12 @@
-import type { UseMutationResult } from "@tanstack/react-query";
 import { type PublishOptions, type ReceivedStatement, queryKeys } from "@use-truapi/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRuntime } from "../context";
 import {
   type LiveListQueryResult,
   type MutationOptions,
+  type NamedMutation,
   type QueryOptions,
+  dropMutate,
   useLiveListQuery,
   useTruapiMutation,
 } from "../internal";
@@ -40,19 +41,30 @@ export interface PublishStatementVariables<T> {
 }
 
 /**
- * Publish JSON payloads (≤512 bytes) to the app topic:
- * `mutate({ data })`. Resolves `false` when the store rejects the statement
- * or the app runs standalone.
+ * Publish JSON payloads (≤512 bytes) to the app topic: `publish(data)`.
+ * Resolves `false` when the store rejects the statement or the app runs
+ * standalone.
  */
 export function usePublishStatement<T = unknown>(options?: {
   mutation?: MutationOptions<boolean, PublishStatementVariables<T>>;
-}): UseMutationResult<boolean, Error, PublishStatementVariables<T>> {
+}): NamedMutation<boolean, PublishStatementVariables<T>> & {
+  publish: (data: T, publishOptions?: PublishOptions) => Promise<boolean>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(
+  const mutation = useTruapiMutation(
     ({ data, options: publishOptions }: PublishStatementVariables<T>) =>
       runtime.statements.publish(data, publishOptions),
     options?.mutation,
   );
+  const { mutateAsync } = mutation;
+  return {
+    ...dropMutate(mutation),
+    publish: useCallback(
+      (data: T, publishOptions?: PublishOptions) =>
+        mutateAsync({ data, ...(publishOptions !== undefined ? { options: publishOptions } : {}) }),
+      [mutateAsync],
+    ),
+  };
 }
 
 export interface StatementChannel<T> {

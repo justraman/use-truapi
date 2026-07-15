@@ -21,7 +21,7 @@ export function HostPanel() {
   const [draft, setDraft] = useState("");
 
   const error =
-    notifications.push.error ??
+    notifications.error ??
     permission.error ??
     devicePermission.error ??
     allocation.error ??
@@ -58,17 +58,17 @@ export function HostPanel() {
         <button
           type="button"
           data-testid="notify"
-          disabled={notifications.push.isPending}
-          onClick={() => notifications.push.mutate({ text: "Hello from use-truapi!" })}
+          disabled={notifications.isPending}
+          onClick={() => void notifications.push({ text: "Hello from use-truapi!" }).catch(() => {})}
         >
           Push notification
         </button>
         <button
           type="button"
           data-testid="cancel-notification"
-          disabled={notifications.push.data === undefined}
+          disabled={notifications.data === undefined}
           onClick={() => {
-            const id = notifications.push.data;
+            const id = notifications.data;
             if (id !== undefined) void notifications.cancel(id).catch(() => {});
           }}
         >
@@ -80,7 +80,7 @@ export function HostPanel() {
           type="button"
           data-testid="request-permission"
           disabled={permission.isPending}
-          onClick={() => permission.mutate({ tag: "StatementSubmit" })}
+          onClick={() => void permission.request({ tag: "StatementSubmit" }).catch(() => {})}
         >
           Statement permission
         </button>
@@ -93,7 +93,7 @@ export function HostPanel() {
           type="button"
           data-testid="request-device-permission"
           disabled={devicePermission.isPending}
-          onClick={() => devicePermission.mutate("Notifications")}
+          onClick={() => void devicePermission.request("Notifications").catch(() => {})}
         >
           Device notifications
         </button>
@@ -108,7 +108,7 @@ export function HostPanel() {
           type="button"
           data-testid="request-allocation"
           disabled={allocation.isPending}
-          onClick={() => allocation.mutate([{ tag: "StatementStoreAllowance" }])}
+          onClick={() => void allocation.request([{ tag: "StatementStoreAllowance" }]).catch(() => {})}
         >
           Statement allowance (RFC-0010)
         </button>
@@ -121,7 +121,9 @@ export function HostPanel() {
           type="button"
           data-testid="derive-entropy"
           disabled={entropy.isPending}
-          onClick={() => entropy.mutate(new TextEncoder().encode("use-truapi-example"))}
+          onClick={() =>
+            void entropy.derive(new TextEncoder().encode("use-truapi-example")).catch(() => {})
+          }
         >
           Derive entropy (RFC-0007)
         </button>

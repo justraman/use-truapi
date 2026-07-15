@@ -1,0 +1,5 @@
+{
+  "title": "Statements",
+  "description": "Ephemeral pub/sub over the Polkadot statement store",
+  "pages": ["use-statements", "use-publish-statement", "use-statement-channel"]
+}

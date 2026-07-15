@@ -1,7 +1,7 @@
 {
   "name": "@use-truapi/core",
   "version": "0.1.0",
-  "description": "Framework-agnostic runtime for TrUAPI hooks: host detection, chain clients, signers, transactions, chat, statements, payments and cloud storage for Polkadot host products.",
+  "description": "Framework-agnostic runtime for TruAPI hooks: host detection, chain clients, signers, transactions, chat, statements, payments and cloud storage for TruAPI products.",
   "license": "MIT",
   "repository": {
     "type": "git",

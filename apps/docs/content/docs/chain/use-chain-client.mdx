@@ -1,0 +1,100 @@
+---
+title: useChainClient
+description: The raw PAPI PolkadotClient for a configured chain
+---
+
+`useChainClient` hands you the underlying PAPI `PolkadotClient`. It is the
+escape hatch for anything the higher-level hooks don't wrap: block observables
+like `bestBlocks$`, `getFinalizedBlock()`, submitting a pre-signed extrinsic.
+For typed reads and transactions prefer
+[`useTypedApi`](/docs/chain/use-typed-api),
+[`useChainQuery`](/docs/chain/use-chain-query) and
+[`useChainSubscription`](/docs/chain/use-chain-subscription).
+
+The client is created lazily on first use and shared across the whole app:
+every hook touching the same chain awaits the same connection. If connecting
+fails, the failed attempt is dropped so the next consumer retries.
+
+How it connects depends on where the app runs. Inside a host (Polkadot
+Desktop or Mobile) the provider is requested from the host by the chain's
+`genesisHash`, no RPC endpoints needed; the request times out after
+`hostProviderTimeoutMs` (default 15000 ms). Standalone, it connects over
+WebSocket to the chain's configured `wsUrls`, and a chain without `wsUrls`
+throws.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useChainClient } from "@use-truapi/react";
+
+function FinalizedBlock() {
+  const { data: client, isPending, error } = useChainClient();
+
+  async function logFinalized() {
+    if (!client) return;
+    const block = await client.getFinalizedBlock();
+    console.log(`finalized #${block.number}`, block.hash);
+  }
+
+  if (isPending) return <p>Connecting…</p>;
+  if (error) return <p>Failed to connect: {error.message}</p>;
+
+  return (
+    <button type="button" onClick={logFinalized}>
+      Log finalized block
+    </button>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useChainClient } from "@use-truapi/vue";
+
+const { data: client, isPending, error } = useChainClient();
+
+async function logFinalized() {
+  if (!client.value) return;
+  const block = await client.value.getFinalizedBlock();
+  console.log(`finalized #${block.number}`, block.hash);
+}
+</script>
+
+<template>
+  <p v-if="isPending">Connecting…</p>
+  <p v-else-if="error">Failed to connect: {{ error.message }}</p>
+  <button v-else type="button" @click="logFinalized">
+    Log finalized block
+  </button>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+To get the client of a chain other than the default, pass its key:
+
+```ts
+const { data: client } = useChainClient({ chain: "people" });
+```
+
+## See also
+
+- [`useTypedApi`](/docs/chain/use-typed-api) is the descriptor-typed api built on this client.
+- [`useChainSubscription`](/docs/chain/use-chain-subscription) subscribes to client and api observables declaratively; its `select` callback receives the client too.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useChainClient.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useChainClient.md</include>

@@ -1,0 +1,155 @@
+---
+title: useAccounts
+description: Wallet state plus connect, disconnect and select in one hook
+---
+
+`useAccounts` returns the current wallet state (`accounts`, `selectedAccount`,
+`status`, `error`) together with the `connect`, `disconnect` and `select`
+actions. Every account hook reads the same shared store, so this hook,
+[`useSelectedAccount`](/docs/accounts/use-selected-account) and
+[`useSigner`](/docs/accounts/use-signer) update together the moment anything
+changes.
+
+`status` walks `"disconnected" → "connecting" → "connected"` (or `"error"`);
+`isConnected` and `isConnecting` are derived from it so you can render without
+string comparisons. `connect()` picks the provider automatically: the host
+provider when running inside a Polkadot host container, dev accounts
+standalone. It is safe to call from several components at once; concurrent
+callers share one attempt, and a failure evicts it so the next click retries.
+
+`select(address)` switches the selected account and throws if the address is
+not in `accounts`. The selection feeds every downstream consumer, including
+transaction hooks like [`useTx`](/docs/tx/use-tx).
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useAccounts } from "@use-truapi/react";
+
+function ConnectWallet() {
+  const {
+    accounts,
+    selectedAccount,
+    isConnected,
+    isConnecting,
+    error,
+    connect,
+    disconnect,
+    select,
+  } = useAccounts();
+
+  if (!isConnected) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => void connect().catch(() => {})}
+          disabled={isConnecting}
+        >
+          {isConnecting ? "Connecting…" : "Connect wallet"}
+        </button>
+        {error && <p role="alert">{error.message}</p>}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <ul>
+        {accounts.map((account) => (
+          <li key={account.address}>
+            <button type="button" onClick={() => select(account.address)}>
+              {account.name ?? account.address}
+              {account.address === selectedAccount?.address && " ✓"}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button type="button" onClick={disconnect}>Disconnect</button>
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useAccounts } from "@use-truapi/vue";
+
+const {
+  accounts,
+  selectedAccount,
+  isConnected,
+  isConnecting,
+  error,
+  connect,
+  disconnect,
+  select,
+} = useAccounts();
+
+function onConnect() {
+  void connect().catch(() => {});
+}
+</script>
+
+<template>
+  <template v-if="!isConnected">
+    <button type="button" :disabled="isConnecting" @click="onConnect">
+      {{ isConnecting ? "Connecting…" : "Connect wallet" }}
+    </button>
+    <p v-if="error" role="alert">{{ error.message }}</p>
+  </template>
+  <template v-else>
+    <ul>
+      <li v-for="account in accounts" :key="account.address">
+        <button type="button" @click="select(account.address)">
+          {{ account.name ?? account.address }}
+          <template v-if="account.address === selectedAccount?.address"> ✓</template>
+        </button>
+      </li>
+    </ul>
+    <button type="button" @click="disconnect">Disconnect</button>
+  </template>
+</template>
+```
+
+In Vue every state field is a `ComputedRef`: use `.value` in script, they
+unwrap automatically in templates. The actions (`connect`, `disconnect`,
+`select`) are plain functions.
+
+</Tab>
+</Tabs>
+
+To force a provider instead of auto-detecting, pass `"host"` or `"dev"`:
+
+```ts
+const accounts = await connect("dev");
+```
+
+With `autoConnect: true` in your config the runtime calls `connect()` on
+startup, so components usually only need to render the resulting state.
+
+## See also
+
+- [`useConnect`](/docs/accounts/use-connect) is the same connect with per-call state (`isPending`, `error`, `data`).
+- [`useSelectedAccount`](/docs/accounts/use-selected-account) returns just the selected account, for components that only read.
+- [`useSigner`](/docs/accounts/use-signer) returns the `PolkadotSigner` of the selected account.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useAccounts.md</include>
+
+<include>../../../generated/react/interfaces/AccountsResult.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useAccounts.md</include>
+
+<include>../../../generated/vue/interfaces/AccountsResult.md</include>

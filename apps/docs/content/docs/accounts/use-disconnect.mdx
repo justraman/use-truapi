@@ -1,0 +1,73 @@
+---
+title: useDisconnect
+description: Disconnect the wallet and clear account state
+---
+
+`useDisconnect` returns a stable function that disconnects the wallet:
+`accounts` empties, `selectedAccount` and the signer become `null`, and
+`status` returns to `"disconnected"`. Every account hook reads the same
+shared store, so one call updates
+[`useAccounts`](/docs/accounts/use-accounts),
+[`useSelectedAccount`](/docs/accounts/use-selected-account) and
+[`useSigner`](/docs/accounts/use-signer) across the whole app.
+
+Disconnecting is synchronous, there is nothing to await. It also resets the
+shared connect attempt, so a subsequent `connect()` starts fresh.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useDisconnect, useSelectedAccount } from "@use-truapi/react";
+
+function DisconnectButton() {
+  const account = useSelectedAccount();
+  const disconnect = useDisconnect();
+
+  if (!account) return null;
+
+  return (
+    <button type="button" onClick={disconnect}>
+      Disconnect {account.name ?? account.address}
+    </button>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useDisconnect, useSelectedAccount } from "@use-truapi/vue";
+
+const account = useSelectedAccount();
+const disconnect = useDisconnect();
+</script>
+
+<template>
+  <button v-if="account" type="button" @click="disconnect">
+    Disconnect {{ account.name ?? account.address }}
+  </button>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useConnect`](/docs/accounts/use-connect) is the inverse operation, with pending and error state.
+- [`useAccounts`](/docs/accounts/use-accounts) bundles the same `disconnect` with the full account state.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useDisconnect.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useDisconnect.md</include>

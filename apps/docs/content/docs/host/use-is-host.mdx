@@ -1,0 +1,73 @@
+---
+title: useIsHost
+description: True once the app is known to run inside a host container
+---
+
+`useIsHost` is the boolean convenience over
+[`useHostMode`](/docs/host/use-host-mode): it returns `true` exactly when the
+mode is `"host"`.
+
+Note the asymmetry: it is `false` both while detection is still pending and
+when the app genuinely runs standalone. That makes it ideal for gating
+host-only UI (a notifications button, a deep-link menu), which should stay
+hidden until the host is confirmed. If you need to distinguish "still
+detecting" from "definitely standalone", use `useHostMode` directly.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useIsHost } from "@use-truapi/react";
+
+function Toolbar() {
+  const isHost = useIsHost();
+
+  return (
+    <nav>
+      <button type="button">Refresh</button>
+      {isHost && <button type="button">Enable reminders</button>}
+    </nav>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useIsHost } from "@use-truapi/vue";
+
+const isHost = useIsHost();
+</script>
+
+<template>
+  <nav>
+    <button type="button">Refresh</button>
+    <button v-if="isHost" type="button">Enable reminders</button>
+  </nav>
+</template>
+```
+
+The composable returns a `ComputedRef`: use `isHost.value` in script, plain
+`isHost` in templates.
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useHostMode`](/docs/host/use-host-mode) is the three-state variant for when the pending window matters.
+- [`useNotifications`](/docs/host/use-notifications) is a host-only API you would typically gate with this hook.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useIsHost.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useIsHost.md</include>

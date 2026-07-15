@@ -39,7 +39,7 @@ const firstError = computed(
 );
 
 function onSend() {
-  send.mutate({ content: draft.value });
+  void send.send(draft.value).catch(() => {});
   draft.value = "";
 }
 </script>

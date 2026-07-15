@@ -1,0 +1,81 @@
+---
+title: useFeatureSupported
+description: Probe the host for support of a feature, such as a specific chain
+---
+
+`useFeatureSupported` asks the host whether it supports a given `Feature` and
+returns the boolean answer as `data` on a query result. The only feature
+variant today is `Chain`, carrying a chain's `0x`-prefixed genesis hash.
+
+While `feature` is `undefined` the query resolves to `false` without asking
+the host, so you can pass a value that may not be ready yet without guarding.
+Results are cached per feature, so any number of components can probe the
+same feature with a single host round-trip.
+
+The probe is a host call: standalone it surfaces `HostUnavailableError` on
+the query's `error`. Gate it on [`useIsHost`](/docs/host/use-is-host) when
+your app also runs outside a container.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useFeatureSupported } from "@use-truapi/react";
+
+const PEOPLE_GENESIS = "0x…" as const;
+
+function PeopleChainSection() {
+  const { data: supported, isPending } = useFeatureSupported({
+    tag: "Chain",
+    value: PEOPLE_GENESIS,
+  });
+
+  if (isPending) return <p>Checking chain support…</p>;
+  if (!supported) return <p>This host does not support the People chain.</p>;
+  return <section>{/* People-chain features */}</section>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useFeatureSupported } from "@use-truapi/vue";
+
+const props = defineProps<{ genesisHash?: `0x${string}` }>();
+
+const { data: supported, isPending } = useFeatureSupported(() =>
+  props.genesisHash ? { tag: "Chain" as const, value: props.genesisHash } : undefined,
+);
+</script>
+
+<template>
+  <p v-if="isPending">Checking chain support…</p>
+  <p v-else-if="!supported">This host does not support the chain.</p>
+  <section v-else><!-- chain features --></section>
+</template>
+```
+
+Pass a getter for reactive features; the query re-runs when the value
+changes.
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useIsHost`](/docs/host/use-is-host) skips the probe entirely outside a host.
+- [`useChainSpec`](/docs/chain/use-chain-spec) fetches the spec of a supported chain.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useFeatureSupported.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useFeatureSupported.md</include>

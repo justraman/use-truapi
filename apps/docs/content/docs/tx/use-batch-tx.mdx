@@ -1,0 +1,135 @@
+---
+title: useBatchTx
+description: Submit several calls as one transaction via Utility.batch_all
+---
+
+`useBatchTx` is [`useTx`](/docs/tx/use-tx) for multiple calls at once: your
+`build` callback returns an array of calls built against the typed api, and
+`submit(build, options?)` wraps them in a single `Utility.batch_all`
+transaction. One signature, one fee payment, atomic by default. The lifecycle
+matches `useTx`, including `phase`:
+`"idle" → "signing" → "broadcasting" → "in-block" → "finalized" | "error"`.
+
+On first submit the hook requests the `ChainSubmit` permission and connects
+the signer if needed. The resolved `TxResult` reports dispatch failures as
+data: check `result.ok`. In the default atomic mode a single failing call
+reverts the whole batch and `dispatchError` carries the reason.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useBatchTx } from "@use-truapi/react";
+import { MultiAddress } from "@polkadot-api/descriptors";
+
+function PaySplit({ recipients, value }: { recipients: string[]; value: bigint }) {
+  const { submit, phase, isPending, error } = useBatchTx();
+
+  async function onPayAll() {
+    const result = await submit((api) =>
+      recipients.map((dest) =>
+        api.tx.Balances.transfer_keep_alive({
+          dest: MultiAddress.Id(dest),
+          value,
+        }),
+      ),
+    );
+    if (!result.ok) console.error("batch reverted", result.dispatchError);
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onPayAll} disabled={isPending}>
+        {isPending ? phase : `Pay ${recipients.length} recipients`}
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useBatchTx } from "@use-truapi/vue";
+import { MultiAddress } from "@polkadot-api/descriptors";
+
+const props = defineProps<{ recipients: string[]; value: bigint }>();
+const { submit, phase, isPending, error } = useBatchTx();
+
+async function onPayAll() {
+  const result = await submit((api) =>
+    props.recipients.map((dest) =>
+      api.tx.Balances.transfer_keep_alive({
+        dest: MultiAddress.Id(dest),
+        value: props.value,
+      }),
+    ),
+  );
+  if (!result.ok) console.error("batch reverted", result.dispatchError);
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onPayAll">
+    {{ isPending ? phase : `Pay ${recipients.length} recipients` }}
+  </button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+The calls don't have to target the same pallet; anything buildable against
+the typed api can go in the array:
+
+```ts
+const result = await submit((api) => [
+  api.tx.Balances.transfer_keep_alive({ dest: MultiAddress.Id(dest), value }),
+  api.tx.System.remark({ remark: Binary.fromText("paid invoice #42") }),
+]);
+```
+
+`submit` accepts all of `useTx`'s submit options (`waitFor`, `onStatus`) plus
+`mode`, which picks the `Utility` wrapper:
+
+- `"batch_all"` (default): atomic, if any call fails all calls revert.
+- `"batch"`: stops at the first failure, earlier calls stay applied.
+- `"force_batch"`: keeps executing the remaining calls after failures.
+
+```ts
+const result = await submit(buildCalls, {
+  mode: "force_batch",
+  waitFor: "finalized",
+});
+```
+
+To build against a specific chain, pass its key; the `build` callback then
+receives that chain's typed api:
+
+```ts
+const { submit } = useBatchTx({ chain: "people" });
+```
+
+`reset()` clears the mutation state and returns `phase` to `"idle"`.
+
+## See also
+
+- [`useTx`](/docs/tx/use-tx) submits a single transaction with the same lifecycle.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useBatchTx.md</include>
+
+<include>../../../generated/react/interfaces/UseBatchTxResult.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useBatchTx.md</include>

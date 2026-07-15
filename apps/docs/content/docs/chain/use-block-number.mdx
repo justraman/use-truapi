@@ -1,0 +1,78 @@
+---
+title: useBlockNumber
+description: Best-block number of a chain, live
+---
+
+`useBlockNumber` tracks the best block number of a chain, updated as new
+blocks arrive. All components watching the same chain share one block
+subscription, dropped when the last consumer unmounts. Values are pushed, so
+there is nothing to refetch.
+
+Beyond showing chain liveness, the block number is a handy re-render tick:
+anything derived from it recomputes once per block.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useBlockNumber } from "@use-truapi/react";
+
+function BlockIndicator() {
+  const { data: blockNumber, isPending, error } = useBlockNumber();
+
+  if (isPending) return <p>Connecting…</p>;
+  if (error) return <p>Lost the chain: {error.message}</p>;
+
+  return <p>Best block: #{blockNumber}</p>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useBlockNumber } from "@use-truapi/vue";
+
+const { data: blockNumber, isPending, error } = useBlockNumber();
+</script>
+
+<template>
+  <p v-if="isPending">Connecting…</p>
+  <p v-else-if="error">Lost the chain: {{ error.message }}</p>
+  <p v-else>Best block: #{{ blockNumber }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+To watch a chain other than the default, pass its key:
+
+```ts
+const { data } = useBlockNumber({ chain: "people" });
+```
+
+Pass `enabled: false` to detach without unmounting, for views that are hidden
+but kept alive (in Vue, `enabled` may be a getter):
+
+```ts
+const { data } = useBlockNumber({ enabled: isVisible });
+```
+
+## See also
+
+- [`useChainSubscription`](/docs/chain/use-chain-subscription) is the general-purpose live subscription this is built on.
+- [`useBalance`](/docs/chain/use-balance) watches the native balance of an address.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useBlockNumber.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useBlockNumber.md</include>

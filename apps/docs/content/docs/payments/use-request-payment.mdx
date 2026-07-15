@@ -1,0 +1,143 @@
+---
+title: useRequestPayment
+description: Ask the user to pay, with the host showing the confirmation UI
+---
+
+`useRequestPayment` requests an RFC-0006 payment from the user. Call
+`request(amount, destination, from?)`: your app never renders a confirmation
+dialog, the host shows its own payment UI and the user approves or rejects
+there. The promise resolves an `{ id }` you can hand straight to
+[`usePaymentStatus`](/docs/payments/use-payment-status); a rejection or
+failure surfaces as the mutation's `error`.
+
+Payments are host-only: standalone the call rejects with
+`HostUnavailableError`.
+
+## Usage
+
+A complete pay-button flow: request the payment, track its status live, and
+show the purse balance updating as it settles.
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import {
+  useFormattedBalance,
+  usePaymentBalance,
+  usePaymentStatus,
+  useRequestPayment,
+} from "@use-truapi/react";
+import { useState } from "react";
+
+function PayButton({ price, merchant }: { price: bigint; merchant: `0x${string}` }) {
+  const [paymentId, setPaymentId] = useState<string>();
+  const { request, isPending, error } = useRequestPayment();
+  const { data: status } = usePaymentStatus(paymentId);
+  const { data: balance } = usePaymentBalance();
+  const available = useFormattedBalance(balance?.available, {
+    decimals: 10,
+    symbol: "PAS",
+  });
+
+  async function onPay() {
+    const { id } = await request(price, merchant);
+    setPaymentId(id);
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onPay} disabled={isPending}>
+        {isPending ? "Waiting for confirmation…" : "Pay"}
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+      {status?.tag === "Processing" && <p>Payment processing…</p>}
+      {status?.tag === "Completed" && <p>Paid ✓</p>}
+      {status?.tag === "Failed" && <p role="alert">Failed: {status.value.reason}</p>}
+      <p>Balance: {available}</p>
+    </>
+  );
+}
+```
+
+A rejected request throws out of `request`, so an async handler like `onPay`
+should be the only place that awaits it; the same error also lands in
+`error`.
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import {
+  useFormattedBalance,
+  usePaymentBalance,
+  usePaymentStatus,
+  useRequestPayment,
+} from "@use-truapi/vue";
+import { ref } from "vue";
+
+const props = defineProps<{ price: bigint; merchant: `0x${string}` }>();
+
+const paymentId = ref<string>();
+const { request, isPending, error } = useRequestPayment();
+const { data: status } = usePaymentStatus(() => paymentId.value);
+const { data: balance } = usePaymentBalance();
+const available = useFormattedBalance(
+  () => balance.value?.available,
+  { decimals: 10, symbol: "PAS" },
+);
+
+async function onPay() {
+  const { id } = await request(props.price, props.merchant);
+  paymentId.value = id;
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onPay">
+    {{ isPending ? "Waiting for confirmation…" : "Pay" }}
+  </button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+  <p v-if="status?.tag === 'Processing'">Payment processing…</p>
+  <p v-if="status?.tag === 'Completed'">Paid ✓</p>
+  <p v-if="status?.tag === 'Failed'" role="alert">
+    Failed: {{ status.value.reason }}
+  </p>
+  <p>Balance: {{ available }}</p>
+</template>
+```
+
+Pass the payment id to `usePaymentStatus` as a getter
+(`() => paymentId.value`) so the status subscription attaches once the id
+exists.
+
+</Tab>
+</Tabs>
+
+To pay from a non-main purse, pass its `PaymentPurseId` as the third
+argument:
+
+```ts
+const { id } = await request(amount, destination, 1);
+```
+
+## See also
+
+- [`usePaymentStatus`](/docs/payments/use-payment-status) tracks the resolved id to Completed or Failed.
+- [`usePaymentBalance`](/docs/payments/use-payment-balance) is the live purse balance.
+- [`useTopUp`](/docs/payments/use-top-up) funds the purse before requesting payments.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useRequestPayment.md</include>
+
+<include>../../../generated/react/interfaces/RequestPaymentVariables.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useRequestPayment.md</include>
+
+<include>../../../generated/vue/interfaces/RequestPaymentVariables.md</include>

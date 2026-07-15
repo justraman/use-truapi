@@ -1,0 +1,123 @@
+---
+title: useUpload
+description: Upload bytes to Bulletin-backed cloud storage and get a CID receipt
+---
+
+`useUpload` stores raw bytes in Bulletin-backed cloud storage. Call
+`upload(data, options?)` with a `Uint8Array`; it resolves with a
+`StoreResult` receipt whose `cid` you later pass to
+[`useCid`](/docs/storage/use-cid) to read the content back. The receipt also
+carries `size` and, when known, the `blockNumber` and `extrinsicIndex` of the
+storing extrinsic. Mutation state (`data`, `error`, `isPending`, `reset`)
+tracks the last upload.
+
+Uploads are signed: the storage client is created lazily on first use and
+signs with the connected account, so the user must connect before the first
+upload (it rejects with a clear error otherwise). The app config must include
+`cloudStorage: { environment }`, or every storage hook rejects with a config
+error.
+
+## Usage
+
+Uploading a JSON document: encode it to bytes with `TextEncoder`, keep the
+returned CID to read it back.
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useCid, useUpload } from "@use-truapi/react";
+import { useState } from "react";
+
+interface Note { title: string; body: string }
+
+function NoteUploader() {
+  const [cid, setCid] = useState<string | undefined>(undefined);
+  const upload = useUpload({
+    mutation: { onSuccess: (result) => setCid(result.cid?.toString()) },
+  });
+  const stored = useCid<Note>(cid, { json: true });
+
+  function onSave(note: Note) {
+    const data = new TextEncoder().encode(JSON.stringify(note));
+    void upload.upload(data).catch(() => {}); // failures land in upload.error
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={upload.isPending}
+        onClick={() => onSave({ title: "hello", body: "stored on Bulletin" })}
+      >
+        {upload.isPending ? "Uploading…" : "Save note"}
+      </button>
+      {upload.error && <p role="alert">{upload.error.message}</p>}
+      {cid && <p>Stored as {cid}, reads back: {stored.data?.title ?? "fetching…"}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useCid, useUpload } from "@use-truapi/vue";
+import { ref } from "vue";
+
+interface Note { title: string; body: string }
+
+const cid = ref<string | undefined>(undefined);
+const upload = useUpload({
+  mutation: { onSuccess: (result) => (cid.value = result.cid?.toString()) },
+});
+const stored = useCid<Note>(() => cid.value, { json: true });
+
+function onSave(note: Note) {
+  const data = new TextEncoder().encode(JSON.stringify(note));
+  void upload.upload(data).catch(() => {}); // failures land in upload.error
+}
+</script>
+
+<template>
+  <button
+    type="button"
+    :disabled="upload.isPending"
+    @click="onSave({ title: 'hello', body: 'stored on Bulletin' })"
+  >
+    {{ upload.isPending ? "Uploading…" : "Save note" }}
+  </button>
+  <p v-if="upload.error" role="alert">{{ upload.error.message }}</p>
+  <p v-if="cid">Stored as {{ cid }}, reads back: {{ stored.data?.title ?? "fetching…" }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+Large payloads can be chunked, with per-chunk progress reported through
+`onProgress`; both are per-upload options:
+
+```ts
+const result = await upload.upload(fileBytes, {
+  chunkSize: 256 * 1024,
+  onProgress: (event) => console.log("upload progress", event),
+});
+```
+
+## See also
+
+- [`useCid`](/docs/storage/use-cid) fetches the stored content back by CID.
+- [`useStorageAuthorization`](/docs/storage/use-storage-authorization) checks the account's remaining quota before uploading.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useUpload.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useUpload.md</include>

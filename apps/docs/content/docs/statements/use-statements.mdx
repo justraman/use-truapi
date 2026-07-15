@@ -1,0 +1,105 @@
+---
+title: useStatements
+description: Live statements on the app topic, accumulated into a bounded list
+---
+
+`useStatements` subscribes to ephemeral statements on your app's topic and
+accumulates them newest-last as a query result. Each entry is a
+`ReceivedStatement<T>`: the JSON-decoded `data` payload (typed by the
+generic) plus metadata like `signerHex`, `topics` and `expiry`.
+
+The list is bounded: past `limit` (default `500`) the oldest entries are
+dropped. `clear()` empties the cached list without touching the
+subscription. Components watching the same `topic2` share a single
+statement-store subscription, detached when the last consumer unmounts.
+
+Statements are host-only. Standalone the hook is empty and inert: `data`
+settles to `[]`, nothing arrives, and no error is raised.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useStatements } from "@use-truapi/react";
+
+interface Reaction {
+  emoji: string;
+  author: string;
+}
+
+function ReactionFeed() {
+  const { data: reactions, clear } = useStatements<Reaction>();
+
+  return (
+    <>
+      <button type="button" onClick={clear}>Clear feed</button>
+      <ul>
+        {reactions?.map((statement, i) => (
+          <li key={i}>
+            {statement.data.emoji} from {statement.data.author}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useStatements } from "@use-truapi/vue";
+
+interface Reaction {
+  emoji: string;
+  author: string;
+}
+
+const { data: reactions, clear } = useStatements<Reaction>();
+</script>
+
+<template>
+  <button type="button" @click="clear">Clear feed</button>
+  <ul>
+    <li v-for="(statement, i) in reactions" :key="i">
+      {{ statement.data.emoji }} from {{ statement.data.author }}
+    </li>
+  </ul>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+Pass `topic2` to narrow the subscription to a room or document; only
+statements published with the same secondary topic arrive. In Vue it accepts
+a getter, so the subscription re-attaches when the value changes:
+
+```ts
+// React
+const { data } = useStatements<Reaction>({ topic2: `room-${roomId}` });
+
+// Vue
+const { data } = useStatements<Reaction>({ topic2: () => `room-${roomId.value}` });
+```
+
+Statements are pushed, not polled. There is nothing to refetch.
+
+## See also
+
+- [`usePublishStatement`](/docs/statements/use-publish-statement) is the publish side of the round trip.
+- [`useStatementChannel`](/docs/statements/use-statement-channel) keeps one value per channel instead of a feed.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useStatements.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useStatements.md</include>

@@ -1,0 +1,132 @@
+---
+title: useNotifications
+description: Schedule and cancel host push notifications (RFC-0019)
+---
+
+`useNotifications` exposes the host's RFC-0019 notification manager. Call
+`push(input)` to deliver or schedule a notification; it resolves to a
+`NotificationId` you can later pass to `cancel(id)` to cancel a pending
+scheduled notification. `scheduledAt` is a Unix timestamp in milliseconds;
+omit it for immediate delivery. The push mutation's state lives on the
+returned object itself: `isPending` while a push is in flight, `data` holds
+the last id, `error` the last failure, `reset()` clears them.
+
+This is host-only: there is no browser fallback, and standalone both `push`
+and `cancel` reject with `HostUnavailableError`. Gate the whole feature on
+[`useIsHost`](/docs/host/use-is-host). Failures such as the host's
+pending-notification cap land in `error`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useIsHost, useNotifications } from "@use-truapi/react";
+import { useState } from "react";
+
+function AuctionReminder({ endsAt }: { endsAt: bigint }) {
+  const isHost = useIsHost();
+  const { push, cancel, isPending, error } = useNotifications();
+  const [id, setId] = useState<number | null>(null);
+
+  async function onRemind() {
+    const notificationId = await push({
+      text: "Auction ends in 10 minutes, place your final bid!",
+      deeplink: "https://auctions.dot/lot/42",
+      scheduledAt: endsAt - 600_000n,
+    });
+    setId(notificationId);
+  }
+
+  async function onCancel() {
+    if (id !== null) await cancel(id);
+    setId(null);
+  }
+
+  if (!isHost) return null;
+
+  return (
+    <>
+      {id === null ? (
+        <button type="button" onClick={onRemind} disabled={isPending}>
+          {isPending ? "Scheduling…" : "Remind me"}
+        </button>
+      ) : (
+        <button type="button" onClick={onCancel}>Cancel reminder</button>
+      )}
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useIsHost, useNotifications } from "@use-truapi/vue";
+import { ref } from "vue";
+
+const props = defineProps<{ endsAt: bigint }>();
+const isHost = useIsHost();
+const { push, cancel, isPending, error } = useNotifications();
+const id = ref<number | null>(null);
+
+async function onRemind() {
+  id.value = await push({
+    text: "Auction ends in 10 minutes, place your final bid!",
+    deeplink: "https://auctions.dot/lot/42",
+    scheduledAt: props.endsAt - 600_000n,
+  });
+}
+
+async function onCancel() {
+  if (id.value !== null) await cancel(id.value);
+  id.value = null;
+}
+</script>
+
+<template>
+  <template v-if="isHost">
+    <button v-if="id === null" type="button" :disabled="isPending" @click="onRemind">
+      {{ isPending ? "Scheduling…" : "Remind me" }}
+    </button>
+    <button v-else type="button" @click="onCancel">Cancel reminder</button>
+    <p v-if="error" role="alert">{{ error.message }}</p>
+  </template>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+For a fire-and-forget immediate notification, swallow the promise; failures
+still show up in `error`:
+
+```tsx
+<button type="button" onClick={() => void push({ text: "Draft saved" }).catch(() => {})}>
+  Notify me
+</button>
+```
+
+## See also
+
+- [`useIsHost`](/docs/host/use-is-host) hides the feature outside a host.
+- [`useDevicePermission`](/docs/host/use-device-permission) requests the `"Notifications"` device permission first.
+- [`useHostNavigate`](/docs/host/use-host-navigate) uses the same deep-link scheme as `deeplink`.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useNotifications.md</include>
+
+<include>../../../generated/react/interfaces/NotificationsApi.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useNotifications.md</include>
+
+<include>../../../generated/vue/interfaces/NotificationsApi.md</include>

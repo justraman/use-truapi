@@ -1,4 +1,4 @@
-import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import type { UseQueryResult } from "@tanstack/react-query";
 import {
   type ChatMessageContent,
   type ChatReceivedAction,
@@ -6,12 +6,14 @@ import {
   type ChatRoomDefinition,
   queryKeys,
 } from "@use-truapi/core";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useRuntime } from "../context";
 import {
   type LiveListQueryResult,
   type MutationOptions,
+  type NamedMutation,
   type QueryOptions,
+  dropMutate,
   useLiveListQuery,
   useLiveQuery,
   useTruapiMutation,
@@ -113,15 +115,32 @@ export interface SendChatMessageVariables {
   roomId?: string;
 }
 
-/** Send into a room: `mutate({ content: "hi" })`. */
+/** Send into a room: `send("hi")` or `send(content, roomId)`. */
 export function useSendChatMessage(
   roomId?: string,
   options?: { mutation?: MutationOptions<{ messageId: string }, SendChatMessageVariables> },
-): UseMutationResult<{ messageId: string }, Error, SendChatMessageVariables> {
+): NamedMutation<{ messageId: string }, SendChatMessageVariables> & {
+  send: (content: ChatMessageContent | string, roomId?: string) => Promise<{ messageId: string }>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(({ content, roomId: roomIdOverride }: SendChatMessageVariables) => {
-    const target = roomIdOverride ?? roomId;
-    if (!target) throw new Error("use-truapi: no roomId given to useSendChatMessage");
-    return runtime.chat.send(target, content);
-  }, options?.mutation);
+  const mutation = useTruapiMutation(
+    ({ content, roomId: roomIdOverride }: SendChatMessageVariables) => {
+      const target = roomIdOverride ?? roomId;
+      if (!target) throw new Error("use-truapi: no roomId given to useSendChatMessage");
+      return runtime.chat.send(target, content);
+    },
+    options?.mutation,
+  );
+  const { mutateAsync } = mutation;
+  return {
+    ...dropMutate(mutation),
+    send: useCallback(
+      (content: ChatMessageContent | string, roomIdOverride?: string) =>
+        mutateAsync({
+          content,
+          ...(roomIdOverride !== undefined ? { roomId: roomIdOverride } : {}),
+        }),
+      [mutateAsync],
+    ),
+  };
 }
