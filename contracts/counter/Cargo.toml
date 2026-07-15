@@ -1,0 +1,26 @@
+[package]
+name = "counter"
+version.workspace = true
+edition.workspace = true
+description = "Minimal counter contract backing the use-truapi example apps"
+authors.workspace = true
+homepage.workspace = true
+license.workspace = true
+
+[lib]
+path = "lib.rs"
+
+[[bin]]
+name = "counter"
+path = "lib.rs"
+
+[features]
+abi-gen = ["pvm-contract-sdk/abi-gen"]
+
+[package.metadata.cdm]
+package = "@use-truapi/counter"
+
+[dependencies]
+pvm-contract-sdk = { workspace = true }
+polkavm-derive = { workspace = true }
+picoalloc = { workspace = true }

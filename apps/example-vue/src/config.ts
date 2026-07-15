@@ -14,6 +14,7 @@ export const config = defineConfig({
   // fixture maps "use-truapi-example.dot/0" to a funded dev account.
   productAccount: { dotNsIdentifier: "use-truapi-example.dot" },
   statements: { appName: "use-truapi-example" },
+  cloudStorage: { environment: "paseo" },
 });
 
 declare module "@use-truapi/vue" {

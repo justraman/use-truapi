@@ -27,6 +27,19 @@ test("host mode badge shows host", async ({ testHost }) => {
   await expect(frame.locator('[data-testid="host-mode"]')).toHaveText("host");
 });
 
+test("all hook panels render in host mode", async ({ testHost }) => {
+  await testHost.waitForConnection();
+  const frame = testHost.productFrame();
+  // Contract panel resolves the deployed counter from cdm.json (no RPC needed to render).
+  await expect(frame.locator('[data-testid="counter-increment"]')).toBeVisible();
+  // Host-only panels switch from their standalone fallback to the real UI.
+  await expect(frame.locator('[data-testid="statement-input"]')).toBeVisible();
+  await expect(frame.locator('[data-testid="chat-input"]')).toBeVisible();
+  await expect(frame.locator('[data-testid="payment-topup"]')).toBeVisible();
+  await expect(frame.locator('[data-testid="upload-input"]')).toBeVisible();
+  await expect(frame.locator('[data-testid="note-input"]')).toBeVisible();
+});
+
 test("theme switch propagates to the app", async ({ testHost }) => {
   await testHost.waitForConnection();
   const frame = testHost.productFrame();
