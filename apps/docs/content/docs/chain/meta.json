@@ -1,0 +1,13 @@
+{
+  "title": "Chain",
+  "description": "Typed chain access: clients, queries, subscriptions",
+  "pages": [
+    "use-chain-client",
+    "use-typed-api",
+    "use-chain-query",
+    "use-chain-subscription",
+    "use-block-number",
+    "use-balance",
+    "use-chain-spec"
+  ]
+}

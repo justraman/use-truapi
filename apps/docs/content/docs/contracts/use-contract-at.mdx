@@ -1,0 +1,86 @@
+---
+title: useContractAt
+description: Ad-hoc contract handle from an H160 address and an ABI
+---
+
+`useContractAt` builds a typed contract handle from a raw H160 address and an
+ABI, without a `cdm.json` manifest. `data` is the same kind of `Contract`
+handle [`useContract`](/docs/contracts/use-contract) returns, so
+[`useContractQuery`](/docs/contracts/use-contract-query) and
+[`useContractTx`](/docs/contracts/use-contract-tx) work identically. Reach
+for it when the address arrives at runtime (user input, route params, a
+registry lookup) or when you interact with a contract you didn't deploy.
+
+While `address` is `undefined` the hook stays disabled (`isPending` with no
+fetch), so you can pass a possibly-missing address without guarding. The
+result is cached under the chain key and the address.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useContractAt, useContractQuery } from "@use-truapi/react";
+import { counterAbi } from "./counter-contract";
+
+function CounterAt({ address }: { address?: `0x${string}` }) {
+  const contract = useContractAt(address, counterAbi);
+  const count = useContractQuery<bigint>(contract.data, "getCount", []);
+
+  if (!address) return <p>Enter a contract address.</p>;
+  if (contract.error) return <p>Failed to load contract: {contract.error.message}</p>;
+
+  return <p>Count: {count.data?.toString() ?? "…"}</p>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useContractAt, useContractQuery } from "@use-truapi/vue";
+import { counterAbi } from "./counter-contract";
+
+const props = defineProps<{ address?: `0x${string}` }>();
+
+const contract = useContractAt(() => props.address, counterAbi);
+const count = useContractQuery<bigint>(contract, "getCount", []);
+</script>
+
+<template>
+  <p v-if="!props.address">Enter a contract address.</p>
+  <p v-else-if="contract.error">Failed to load contract: {{ contract.error.message }}</p>
+  <p v-else>Count: {{ count.data?.toString() ?? "…" }}</p>
+</template>
+```
+
+Pass a getter (`() => props.address`) so the handle re-resolves when the
+address changes, and pass the whole `contract` query result to the downstream
+composables.
+
+</Tab>
+</Tabs>
+
+To build against a specific chain, pass its key:
+
+```ts
+const contract = useContractAt(address, counterAbi, { chain: "assetHub" });
+```
+
+## See also
+
+- [`useContract`](/docs/contracts/use-contract) resolves the handle from a `cdm.json` manifest.
+- [`useContractQuery`](/docs/contracts/use-contract-query) runs read-only dry-run calls on the handle.
+- [`useContractTx`](/docs/contracts/use-contract-tx) signs and submits contract writes.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useContractAt.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useContractAt.md</include>

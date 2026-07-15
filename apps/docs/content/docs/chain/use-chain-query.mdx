@@ -1,0 +1,117 @@
+---
+title: useChainQuery
+description: One-shot read against the typed api, cached by chain and deps
+---
+
+`useChainQuery` runs a one-shot read against the typed PAPI api. The `deps`
+array identifies the read: change a dep and it re-runs and is cached
+separately. Two components reading with the same chain and deps share one
+result. Deps are serialized bigint-safely, so `bigint` values are fine.
+
+The value is fetched once; it does not update as new blocks arrive. For
+values that should track the chain head use
+[`useChainSubscription`](/docs/chain/use-chain-subscription). To refresh a
+read, call `refetch()` on the result.
+
+While `enabled` is `false` nothing is fetched and the result stays pending,
+so you can depend on data that may not exist yet (an unconnected wallet, an
+unresolved route param) without guarding the callback.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useChainQuery, useSelectedAccount } from "@use-truapi/react";
+
+function AccountInfo() {
+  const account = useSelectedAccount();
+  const address = account?.address;
+
+  // `address` is a dep: the read re-runs (and caches separately) per address.
+  const { data, isPending, error } = useChainQuery(
+    (api) => api.query.System.Account.getValue(address!),
+    [address],
+    { enabled: address !== undefined },
+  );
+
+  if (!account) return <p>Connect a wallet first.</p>;
+  if (isPending) return <p>Loading account…</p>;
+  if (error) return <p>Failed to read account: {error.message}</p>;
+
+  return (
+    <p>
+      Nonce {data.nonce}, free {data.data.free.toString()} planck
+    </p>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useChainQuery, useSelectedAccount } from "@use-truapi/vue";
+
+const account = useSelectedAccount();
+
+// Deps are getters: the read re-runs when the address changes.
+const { data, isPending, error } = useChainQuery(
+  (api) => api.query.System.Account.getValue(account.value!.address),
+  [() => account.value?.address],
+  { enabled: () => account.value !== undefined },
+);
+</script>
+
+<template>
+  <p v-if="!account">Connect a wallet first.</p>
+  <p v-else-if="isPending">Loading account…</p>
+  <p v-else-if="error">Failed to read account: {{ error.message }}</p>
+  <p v-else>Nonce {{ data.nonce }}, free {{ data.data.free }} planck</p>
+</template>
+```
+
+Pass getters in `deps` (and for `enabled`) so the read follows the reactive
+value when it changes.
+
+</Tab>
+</Tabs>
+
+A read with no inputs takes an empty `deps` array and is cached once per
+chain:
+
+```ts
+const totalIssuance = useChainQuery(
+  (api) => api.query.Balances.TotalIssuance.getValue(),
+  [],
+);
+```
+
+To read another chain, pass its key; the `read` callback is then typed
+against that chain's descriptor:
+
+```ts
+const { data } = useChainQuery(
+  (api) => api.query.Identity.IdentityOf.getValue(address!),
+  [address],
+  { chain: "people", enabled: address !== undefined },
+);
+```
+
+## See also
+
+- [`useChainSubscription`](/docs/chain/use-chain-subscription) is the live counterpart: values pushed on every change.
+- [`useTypedApi`](/docs/chain/use-typed-api) gives you the typed api itself, for imperative calls.
+- [`useBalance`](/docs/chain/use-balance) is a purpose-built live balance watch.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useChainQuery.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useChainQuery.md</include>

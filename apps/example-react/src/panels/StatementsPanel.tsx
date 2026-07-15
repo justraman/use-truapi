@@ -53,7 +53,7 @@ export function StatementsPanel() {
           type="button"
           data-testid="statement-publish"
           disabled={publish.isPending || draft === ""}
-          onClick={() => void publish.mutateAsync({ data: { text: draft } }).catch(() => {})}
+          onClick={() => void publish.publish({ text: draft }).catch(() => {})}
         >
           Publish
         </button>

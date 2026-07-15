@@ -1,0 +1,5 @@
+{
+  "title": "Payments",
+  "description": "RFC-0006 payment balance, requests and top-ups",
+  "pages": ["use-payment-balance", "use-request-payment", "use-top-up", "use-payment-status"]
+}

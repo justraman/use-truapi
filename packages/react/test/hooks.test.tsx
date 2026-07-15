@@ -114,11 +114,12 @@ describe("account hooks", () => {
     expect(result.current.selectedAccount).not.toBeNull();
   });
 
-  it("useConnect exposes TanStack mutation state", async () => {
+  it("useConnect exposes a named connect action with mutation state", async () => {
     const { result } = renderHook(() => useConnect(), { wrapper: wrapperFor() });
     expect(result.current.status).toBe("idle");
+    expect("mutate" in result.current).toBe(false);
     await act(async () => {
-      await result.current.mutateAsync();
+      await result.current.connect();
     });
     await waitFor(() => expect(result.current.status).toBe("success"));
     expect(result.current.data?.length).toBeGreaterThan(0);

@@ -2,7 +2,7 @@
 
 Where `use-truapi` is today and where it's going. Checkboxes are the working
 TODO list; milestones are intent, not promises — the protocol underneath
-(TrUAPI / `@parity/product-sdk`) is explicitly a prototype and we track it.
+(TruAPI / `@parity/product-sdk`) is explicitly a prototype and we track it.
 
 ## Status — v0.1 (current)
 
@@ -92,10 +92,10 @@ The biggest adoption lever: people need to test *their* apps, not ours.
 
 ## v1.0 — Stability contract
 
-Gated on the upstream stack stabilizing (TrUAPI is versioned wire-protocol
+Gated on the upstream stack stabilizing (TruAPI is versioned wire-protocol
 v0.3 today and product-sdk is pre-1.0).
 
-- [ ] Pin a supported TrUAPI protocol version range and document it
+- [ ] Pin a supported TruAPI protocol version range and document it
 - [ ] Public API freeze + semver policy (breaking changes only on majors)
 - [ ] Docs site (typedoc API reference + guides) instead of the single README
 - [ ] SSR/meta-framework guidance (Nuxt, Next) — audit `window`/`localStorage`

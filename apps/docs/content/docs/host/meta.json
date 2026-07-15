@@ -1,0 +1,17 @@
+{
+  "title": "Host",
+  "description": "Host detection, theme, permissions, navigation, notifications and KV storage",
+  "pages": [
+    "use-host-mode",
+    "use-is-host",
+    "use-theme",
+    "use-permission",
+    "use-device-permission",
+    "use-resource-allocation",
+    "use-host-navigate",
+    "use-feature-supported",
+    "use-derive-entropy",
+    "use-notifications",
+    "use-host-storage"
+  ]
+}

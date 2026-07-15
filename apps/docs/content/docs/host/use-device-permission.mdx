@@ -1,0 +1,90 @@
+---
+title: useDevicePermission
+description: Request a device capability such as camera or notifications from the host
+---
+
+`useDevicePermission` asks the host to grant access to a device capability
+(camera, microphone, notifications, clipboard and so on). Call
+`request(kind)`: it resolves to `true` when granted, `false` when the user
+declined. A denial is data, not an exception; thrown errors mean the request
+itself failed. The hook also returns mutation state (`isPending`, `error`,
+`data`, `reset`).
+
+Unlike [`usePermission`](/docs/host/use-permission), which covers remote
+operations the host performs on the user's behalf, device permissions cover
+local hardware and OS integrations. Request them right before the feature
+that needs them: a camera prompt on tapping "Scan QR" converts far better
+than one at startup.
+
+This is a host feature: standalone, `request` rejects with
+`HostUnavailableError`. In a plain browser use the regular web APIs
+(`navigator.mediaDevices`, the Notification API) instead.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useDevicePermission } from "@use-truapi/react";
+
+function ScanButton({ onReady }: { onReady: () => void }) {
+  const { request, isPending, error } = useDevicePermission();
+
+  async function onScan() {
+    const granted = await request("Camera");
+    if (granted) onReady();
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onScan} disabled={isPending}>
+        {isPending ? "Waiting for approval…" : "Scan QR code"}
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useDevicePermission } from "@use-truapi/vue";
+
+const emit = defineEmits<{ ready: [] }>();
+const { request, isPending, error } = useDevicePermission();
+
+async function onScan() {
+  const granted = await request("Camera");
+  if (granted) emit("ready");
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onScan">
+    {{ isPending ? "Waiting for approval…" : "Scan QR code" }}
+  </button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`usePermission`](/docs/host/use-permission) covers RFC-0002 remote permissions.
+- [`useNotifications`](/docs/host/use-notifications) typically pairs with the `"Notifications"` permission.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useDevicePermission.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useDevicePermission.md</include>

@@ -1,0 +1,99 @@
+---
+title: useResourceAllocation
+description: Request RFC-0010 allowances from the host in one up-front prompt
+---
+
+`useResourceAllocation` asks the host to pre-allocate RFC-0010 resources for
+the product. Call `request(resources)` with an array of `AllocatableResource`
+items (`StatementStoreAllowance`, `AutoSigning` and friends) so several
+allowances collapse into a single user prompt. It resolves to one
+`AllocationOutcome` per requested resource, in the same order: `"Allocated"`,
+`"Rejected"` or `"NotAvailable"`. Per-resource rejection is data, not an
+exception; thrown errors mean the request itself failed. The hook also
+returns mutation state (`isPending`, `error`, `data`, `reset`).
+
+For the allowance resources pre-allocation is opportunistic: the host may
+also fulfil the allowance implicitly on the first submission. `AutoSigning`
+has no implicit path and must be requested explicitly through this hook.
+
+This is a host feature: standalone, `request` rejects with
+`HostUnavailableError`, so gate it on [`useIsHost`](/docs/host/use-is-host).
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useResourceAllocation } from "@use-truapi/react";
+
+function Onboarding({ onDone }: { onDone: () => void }) {
+  const { request, isPending, error } = useResourceAllocation();
+
+  async function onSetUp() {
+    const [statements, autoSigning] = await request([
+      { tag: "StatementStoreAllowance" },
+      { tag: "AutoSigning" },
+    ]);
+    if (statements !== "Allocated") console.warn("no statement allowance:", statements);
+    if (autoSigning !== "Allocated") console.warn("auto-signing declined:", autoSigning);
+    onDone();
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onSetUp} disabled={isPending}>
+        {isPending ? "Waiting for approval…" : "Set up messaging"}
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useResourceAllocation } from "@use-truapi/vue";
+
+const emit = defineEmits<{ done: [] }>();
+const { request, isPending, error } = useResourceAllocation();
+
+async function onSetUp() {
+  const [statements, autoSigning] = await request([
+    { tag: "StatementStoreAllowance" },
+    { tag: "AutoSigning" },
+  ]);
+  if (statements !== "Allocated") console.warn("no statement allowance:", statements);
+  if (autoSigning !== "Allocated") console.warn("auto-signing declined:", autoSigning);
+  emit("done");
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onSetUp">
+    {{ isPending ? "Waiting for approval…" : "Set up messaging" }}
+  </button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`usePermission`](/docs/host/use-permission) covers one-off RFC-0002 remote permissions.
+- [`usePublishStatement`](/docs/statements/use-publish-statement) benefits from a pre-allocated `StatementStoreAllowance`.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useResourceAllocation.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useResourceAllocation.md</include>

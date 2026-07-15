@@ -1,0 +1,100 @@
+---
+title: useConnect
+description: Connect a wallet, with per-call pending and error state
+---
+
+`useConnect` exposes `connect(provider?)`, which resolves with the list of
+`SignerAccount`s, plus mutation state: `isPending` tracks the call, `error`
+carries a failure, `data` holds the last result and `reset()` clears them.
+Use it over the `connect` in [`useAccounts`](/docs/accounts/use-accounts)
+when a button needs its own pending or error state.
+
+Both drive the same shared connection, so a connect fired here updates
+`useAccounts`, [`useSelectedAccount`](/docs/accounts/use-selected-account)
+and [`useSigner`](/docs/accounts/use-signer) everywhere. Concurrent connects
+share a single attempt; a failed attempt is evicted so the next call retries.
+
+Called without an argument, `connect()` auto-detects the provider: the host
+provider inside a Polkadot host container, dev accounts standalone. Pass
+`"host"` or `"dev"` to force one. Failures reject the returned promise and
+also land in `error`, so a click handler can ignore the rejection and let the
+UI render the error state.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useConnect } from "@use-truapi/react";
+
+function ConnectButton() {
+  const { connect, isPending, error } = useConnect();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void connect().catch(() => {})}
+        disabled={isPending}
+      >
+        {isPending ? "Connecting…" : "Connect wallet"}
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useConnect } from "@use-truapi/vue";
+
+const { connect, isPending, error } = useConnect();
+
+function onConnect() {
+  void connect().catch(() => {});
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onConnect">
+    {{ isPending ? "Connecting…" : "Connect wallet" }}
+  </button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+`connect` resolves with the accounts, which is handy when connecting is step
+one of a larger flow:
+
+```ts
+const { connect } = useConnect();
+
+async function onGetStarted() {
+  const accounts = await connect(); // or connect("dev")
+  console.log("first account:", accounts[0]?.address);
+}
+```
+
+## See also
+
+- [`useAccounts`](/docs/accounts/use-accounts) bundles connect with the full account state and `select`.
+- [`useDisconnect`](/docs/accounts/use-disconnect) is the inverse operation.
+- [`useLogin`](/docs/accounts/use-login) performs RFC-0009 login on top of the connected host session.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useConnect.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useConnect.md</include>

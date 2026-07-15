@@ -52,7 +52,7 @@ export function AccountsPanel() {
           type="button"
           data-testid="connect"
           disabled={isConnecting || connect.isPending}
-          onClick={() => connect.mutate()}
+          onClick={() => void connect.connect().catch(() => {})}
         >
           {isConnecting || connect.isPending ? "Connecting…" : "Connect"}
         </button>
@@ -65,7 +65,7 @@ export function AccountsPanel() {
           type="button"
           data-testid="login"
           disabled={login.isPending}
-          onClick={() => login.mutate()}
+          onClick={() => void login.login().catch(() => {})}
         >
           Login (RFC-0009)
         </button>
@@ -74,7 +74,9 @@ export function AccountsPanel() {
           type="button"
           data-testid="sign-raw"
           disabled={!isConnected || signRaw.isPending}
-          onClick={() => signRaw.mutate(new TextEncoder().encode("gm from use-truapi"))}
+          onClick={() =>
+            void signRaw.sign(new TextEncoder().encode("gm from use-truapi")).catch(() => {})
+          }
         >
           Sign message
         </button>

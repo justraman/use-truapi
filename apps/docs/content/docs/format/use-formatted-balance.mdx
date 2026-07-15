@@ -1,0 +1,96 @@
+---
+title: useFormattedBalance
+description: Format a planck bigint for display, memoized and null-safe
+---
+
+`useFormattedBalance` turns a raw planck `bigint` into a display-ready
+string: locale-aware thousand separators, fraction truncation and an
+optional token symbol. It is null-safe: `undefined` or `null` input returns
+an empty string, so you can pass `balance?.free` straight from a pending
+[`useBalance`](/docs/chain/use-balance) result without guarding.
+
+In React the result is a memoized `string`, recomputed only when the value
+or options change. In Vue it is a `ComputedRef` of `string`, and the input
+may be a getter for reactive sources.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useBalance, useFormattedBalance, useSelectedAccount } from "@use-truapi/react";
+
+function FreeBalance() {
+  const account = useSelectedAccount();
+  const { data: balance } = useBalance(account?.address);
+  const free = useFormattedBalance(balance?.free, {
+    decimals: 10,
+    maxDecimals: 2,
+    symbol: "PAS",
+  });
+
+  // "" while the balance is loading, e.g. "1,234.56 PAS" once it arrives
+  return <p>{free || "Loading…"}</p>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useBalance, useFormattedBalance, useSelectedAccount } from "@use-truapi/vue";
+
+const account = useSelectedAccount();
+const { data: balance } = useBalance(() => account.value?.address);
+const free = useFormattedBalance(() => balance.value?.free, {
+  decimals: 10,
+  maxDecimals: 2,
+  symbol: "PAS",
+});
+</script>
+
+<template>
+  <!-- "" while the balance is loading, e.g. "1,234.56 PAS" once it arrives -->
+  <p>{{ free || "Loading…" }}</p>
+</template>
+```
+
+Pass a getter (`() => balance.value?.free`) for reactive values; the
+computed string updates as the balance changes.
+
+</Tab>
+</Tabs>
+
+What the output looks like:
+
+```ts
+useFormattedBalance(10_000_000_000n);                        // "1"       (trailing .0 omitted)
+useFormattedBalance(15_000_000_000n, { symbol: "DOT" });     // "1.5 DOT"
+useFormattedBalance(10_000_000_000_000n, { symbol: "DOT" }); // "1,000 DOT"
+useFormattedBalance(12_345_678_900n, { maxDecimals: 2 });    // "1.23"
+useFormattedBalance(undefined);                              // ""
+```
+
+For one-off formatting outside components, the underlying `formatBalance`
+(and the lower-level `formatPlanck` / `parseToPlanck`) are exported from
+every package.
+
+## See also
+
+- [`useBalance`](/docs/chain/use-balance) provides the live planck values this hook typically formats.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useFormattedBalance.md</include>
+
+<include>../../../generated/react/interfaces/FormatBalanceOptions.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useFormattedBalance.md</include>
+
+<include>../../../generated/vue/interfaces/FormatBalanceOptions.md</include>

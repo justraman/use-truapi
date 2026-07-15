@@ -31,7 +31,7 @@ function onSelect(event: Event) {
 }
 
 function onSignRaw() {
-  signRaw.mutate(new TextEncoder().encode("gm from use-truapi"));
+  void signRaw.sign(new TextEncoder().encode("gm from use-truapi")).catch(() => {});
 }
 </script>
 
@@ -53,13 +53,13 @@ function onSignRaw() {
       type="button"
       data-testid="connect"
       :disabled="isConnecting || connect.isPending.value"
-      @click="connect.mutate()"
+      @click="connect.connect().catch(() => {})"
     >
       {{ isConnecting || connect.isPending.value ? "Connecting…" : "Connect" }}
     </button>
     <div class="row" style="margin-top: 8px">
       <span class="badge" data-testid="user-id">user: {{ userId.data.value ?? "—" }}</span>
-      <button type="button" data-testid="login" :disabled="login.isPending.value" @click="login.mutate()">
+      <button type="button" data-testid="login" :disabled="login.isPending.value" @click="login.login().catch(() => {})">
         Login (RFC-0009)
       </button>
       <span v-if="login.data.value" class="muted">login: {{ login.data.value }}</span>

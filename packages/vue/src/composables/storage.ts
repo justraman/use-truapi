@@ -8,9 +8,10 @@ import { useRuntime } from "../context";
 import {
   type MaybeGetter,
   type MutationOptions,
-  type MutationResult,
+  type NamedMutation,
   type QueryOptions,
   type QueryResult,
+  dropMutate,
   toGetter,
   useTruapiMutation,
   useTruapiQuery,
@@ -21,16 +22,26 @@ export interface UploadVariables {
   options?: UploadOptions;
 }
 
-/** Upload bytes to Bulletin-backed cloud storage: `mutate({ data })` → CID receipt. */
+/** Upload bytes to Bulletin-backed cloud storage: `upload(data)` → CID receipt. */
 export function useUpload(options?: {
   mutation?: MutationOptions<StoreResult, UploadVariables>;
-}): MutationResult<StoreResult, UploadVariables> {
+}): NamedMutation<StoreResult, UploadVariables> & {
+  upload: (data: Uint8Array, uploadOptions?: UploadOptions) => Promise<StoreResult>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(
+  const mutation = useTruapiMutation(
     ({ data, options: uploadOptions }: UploadVariables) =>
       runtime.cloudStorage.upload(data, uploadOptions),
     options?.mutation,
   );
+  return {
+    ...dropMutate(mutation),
+    upload: (data: Uint8Array, uploadOptions?: UploadOptions) =>
+      mutation.mutateAsync({
+        data,
+        ...(uploadOptions !== undefined ? { options: uploadOptions } : {}),
+      }),
+  };
 }
 
 /** Fetch CID content (host preimage lookup). Set `json` to parse. */

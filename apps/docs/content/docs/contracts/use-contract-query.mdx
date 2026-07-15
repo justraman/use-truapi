@@ -1,0 +1,101 @@
+---
+title: useContractQuery
+description: Read-only contract call, a ReviveApi dry-run cached like any query
+---
+
+`useContractQuery` performs a read-only contract call: a `ReviveApi.call`
+dry-run that never signs or submits anything. `data` is the decoded return
+value; pass the expected type as the generic
+(`useContractQuery<bigint>(…)`). Results are cached under the contract
+identity, the method name and the args, so several components reading the
+same value share one dry-run; different args are different cache entries.
+
+While the contract handle hasn't resolved the query stays disabled
+(`isPending`), no need to guard on the handle. If the call reverts the query
+errors with `contract query "method" reverted` and the revert value attached
+as `error.cause`; an unknown method name errors with
+`contract has no method "method"`.
+
+Reads are one shot, not subscriptions. Call `refetch()` (for example from a
+transaction's `onSuccess`) to observe a new value after a write.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useContract, useContractQuery } from "@use-truapi/react";
+import { COUNTER_LIBRARY, cdmJson } from "./counter-contract";
+
+function Count() {
+  const contract = useContract(cdmJson, COUNTER_LIBRARY);
+  const count = useContractQuery<bigint>(contract.data, "getCount", []);
+
+  if (count.isPending) return <p>Reading count…</p>;
+  if (count.error) return <p>Read failed: {count.error.message}</p>;
+
+  return (
+    <p>
+      Count: {count.data.toString()}{" "}
+      <button type="button" onClick={() => count.refetch()}>Refresh</button>
+    </p>
+  );
+}
+```
+
+In React, pass the resolved handle, `contract.data`, as the first argument.
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useContract, useContractQuery } from "@use-truapi/vue";
+import { COUNTER_LIBRARY, cdmJson } from "./counter-contract";
+
+const contract = useContract(cdmJson, COUNTER_LIBRARY);
+const count = useContractQuery<bigint>(contract, "getCount", []);
+</script>
+
+<template>
+  <p v-if="count.isPending">Reading count…</p>
+  <p v-else-if="count.error">Read failed: {{ count.error.message }}</p>
+  <p v-else>
+    Count: {{ count.data?.toString() }}
+    <button type="button" @click="count.refetch()">Refresh</button>
+  </p>
+</template>
+```
+
+In Vue, pass the whole query result returned by `useContract` or
+`useContractAt`; the read unwraps `contract.data` reactively and enables
+itself once the handle resolves. Args may be a getter (`() => [props.id]`) so
+reactive args re-run the read.
+
+</Tab>
+</Tabs>
+
+Gate the read with `enabled` while an input is incomplete; it combines with
+the built-in "contract resolved" gate:
+
+```ts
+const balance = useContractQuery<bigint>(contract.data, "balanceOf", [owner], {
+  enabled: owner !== undefined, // Vue: () => owner.value !== undefined
+});
+```
+
+## See also
+
+- [`useContract`](/docs/contracts/use-contract) and [`useContractAt`](/docs/contracts/use-contract-at) obtain the handle to read from.
+- [`useContractTx`](/docs/contracts/use-contract-tx) is the write-side counterpart; refetch after it succeeds.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useContractQuery.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useContractQuery.md</include>

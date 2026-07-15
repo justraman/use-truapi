@@ -1,0 +1,114 @@
+---
+title: useChatActions
+description: Raw chat action stream (messages, button presses, commands)
+---
+
+`useChatActions` subscribes to the raw stream of chat actions and invokes
+your handler for every event. It returns nothing; it is a pure side-effect
+hook, the imperative counterpart to
+[`useChatMessages`](/docs/chat/use-chat-messages).
+
+Each `ChatReceivedAction` carries the `roomId`, the `peer` who initiated it,
+and a tagged `payload`:
+
+- `MessagePosted`: a peer posted a message; `value` is the `ChatMessageContent`.
+- `ActionTriggered`: a user pressed an action button; `value` has the
+  `messageId`, the `actionId` and an optional `payload`.
+- `Command`: a user issued a slash command; `value` has the `command` name
+  and its `payload` string.
+
+In React the handler is read through a ref, so it always sees your latest
+closure without re-subscribing; passing an inline function is fine. The
+subscription is torn down on unmount and re-attached when `enabled` flips.
+Chat is host-only: running standalone the subscription fails and `onError`
+receives a `HostUnavailableError`; without an `onError` the failure is
+silent.
+
+## Usage
+
+The reactive half of a bot: reply when a user presses the button posted in
+the [`useChatBot`](/docs/chat/use-chat-bot) example, or asks for help.
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useChatActions, useSendChatMessage } from "@use-truapi/react";
+
+function DiceBotListener() {
+  const { send } = useSendChatMessage();
+
+  useChatActions(
+    (action) => {
+      if (action.payload.tag === "ActionTriggered" && action.payload.value.actionId === "roll") {
+        const roll = 1 + Math.floor(Math.random() * 6);
+        void send(`You rolled a ${roll}!`, action.roomId).catch(() => {});
+      }
+      if (action.payload.tag === "Command" && action.payload.value.command === "help") {
+        void send("Press the Roll button to roll a die.", action.roomId).catch(() => {});
+      }
+    },
+    { onError: (e) => console.error("chat actions interrupted", e) },
+  );
+
+  return null;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useChatActions, useSendChatMessage } from "@use-truapi/vue";
+
+const { send } = useSendChatMessage();
+
+useChatActions(
+  (action) => {
+    if (action.payload.tag === "ActionTriggered" && action.payload.value.actionId === "roll") {
+      const roll = 1 + Math.floor(Math.random() * 6);
+      void send(`You rolled a ${roll}!`, action.roomId).catch(() => {});
+    }
+    if (action.payload.tag === "Command" && action.payload.value.command === "help") {
+      void send("Press the Roll button to roll a die.", action.roomId).catch(() => {});
+    }
+  },
+  { onError: (e) => console.error("chat actions interrupted", e) },
+);
+</script>
+
+<template>
+  <!-- listener only, nothing to render -->
+</template>
+```
+
+In Vue, `enabled` may be a getter (`() => isBotActive.value`); the
+subscription attaches and detaches as it flips.
+
+</Tab>
+</Tabs>
+
+To pause the stream, pass `enabled`:
+
+```ts
+useChatActions(handleAction, { enabled: isListening });
+```
+
+While `enabled` is `false` no subscription is held; flipping it back to
+`true` re-attaches. Events that occurred in between are not replayed.
+
+## See also
+
+- [`useChatMessages`](/docs/chat/use-chat-messages) is the same stream filtered to `MessagePosted`, accumulated into a list for rendering.
+- [`useSendChatMessage`](/docs/chat/use-send-chat-message) replies from inside the handler.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useChatActions.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useChatActions.md</include>

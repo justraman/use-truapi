@@ -1,4 +1,4 @@
-import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import type { UseQueryResult } from "@tanstack/react-query";
 import {
   type AbiEntry,
   type CdmJson,
@@ -8,11 +8,14 @@ import {
   queryKeys,
   resolveChain,
 } from "@use-truapi/core";
+import { useCallback } from "react";
 import { type ChainKey, useRuntime } from "../context";
 import {
   type MutationOptions,
+  type NamedMutation,
   type OptionalVariables,
   type QueryOptions,
+  dropMutate,
   useTruapiMutation,
   useTruapiQuery,
 } from "../internal";
@@ -112,19 +115,21 @@ export function useContractQuery<T = unknown>(
 }
 
 /**
- * Contract transaction as a mutation: dry-run pre-flight, then sign/submit/watch.
+ * Contract transaction: dry-run pre-flight, then sign/submit/watch.
  *
  * ```ts
  * const increment = useContractTx(contract, "increment");
- * await increment.mutateAsync([]);
+ * await increment.send();
  * ```
  */
 export function useContractTx(
   contract: Contract<ContractDef> | undefined,
   method: string,
   options?: { mutation?: MutationOptions<TxResult, OptionalVariables<readonly unknown[]>> },
-): UseMutationResult<TxResult, Error, OptionalVariables<readonly unknown[]>> {
-  return useTruapiMutation(async (args: OptionalVariables<readonly unknown[]>) => {
+): NamedMutation<TxResult, OptionalVariables<readonly unknown[]>> & {
+  send: (args?: readonly unknown[]) => Promise<TxResult>;
+} {
+  const mutation = useTruapiMutation(async (args: OptionalVariables<readonly unknown[]>) => {
     if (!contract) throw new Error("use-truapi: contract not ready");
     const handle = (contract as Record<string, { tx: (...a: unknown[]) => Promise<TxResult> }>)[
       method
@@ -132,16 +137,28 @@ export function useContractTx(
     if (!handle) throw new Error(`use-truapi: contract has no method "${method}"`);
     return handle.tx(...(args ?? []));
   }, options?.mutation);
+  const { mutateAsync } = mutation;
+  return {
+    ...dropMutate(mutation),
+    send: useCallback((args?: readonly unknown[]) => mutateAsync(args), [mutateAsync]),
+  };
 }
 
-/** Idempotent pallet-revive account mapping — required once before contract txs. */
+/** Idempotent pallet-revive account mapping — required once before contract txs: `ensureMapped()`. */
 export function useEnsureAccountMapped(
   cdmJson: CdmJson,
   options?: { chain?: ChainKey; mutation?: MutationOptions<void, void> },
-): UseMutationResult<void, Error, void> {
+): NamedMutation<void, void> & {
+  ensureMapped: () => Promise<void>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(
+  const mutation = useTruapiMutation(
     () => runtime.contracts.ensureMapped(cdmJson, options),
     options?.mutation,
   );
+  const { mutateAsync } = mutation;
+  return {
+    ...dropMutate(mutation),
+    ensureMapped: useCallback(() => mutateAsync(), [mutateAsync]),
+  };
 }

@@ -1,0 +1,82 @@
+---
+title: useBalance
+description: Live native balance of an address, in planck
+---
+
+`useBalance` subscribes to the native token balance of an address. `data` is
+an `AccountBalance` with `free`, `reserved` and `frozen` as `bigint` planck
+values, updated as blocks arrive.
+
+Any number of components can watch the same `(chain, address)` pair; they
+share one storage subscription, which is dropped when the last consumer
+unmounts. While `address` is `undefined` the hook stays disabled, so you can
+pass `account?.address` without guarding.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useBalance, useFormattedBalance, useSelectedAccount } from "@use-truapi/react";
+
+function Balance() {
+  const account = useSelectedAccount();
+  const { data: balance, isPending, error } = useBalance(account?.address);
+  const free = useFormattedBalance(balance?.free, { decimals: 10, symbol: "PAS" });
+
+  if (!account) return <p>Connect a wallet first.</p>;
+  if (isPending) return <p>Loading balance…</p>;
+  if (error) return <p>Failed to load balance: {error.message}</p>;
+
+  return <p>{free} free, {balance.reserved.toString()} reserved</p>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useBalance, useFormattedBalance, useSelectedAccount } from "@use-truapi/vue";
+
+const account = useSelectedAccount();
+const { data: balance, isPending, error } = useBalance(() => account.value?.address);
+const free = useFormattedBalance(
+  () => balance.value?.free,
+  { decimals: 10, symbol: "PAS" },
+);
+</script>
+
+<template>
+  <p v-if="!account">Connect a wallet first.</p>
+  <p v-else-if="isPending">Loading balance…</p>
+  <p v-else-if="error">Failed to load balance: {{ error.message }}</p>
+  <p v-else>{{ free }} free, {{ balance.reserved }} reserved</p>
+</template>
+```
+
+Pass a getter (`() => account.value?.address`) so the subscription follows
+the address when it changes.
+
+</Tab>
+</Tabs>
+
+To watch a chain other than the default, pass its key:
+
+```ts
+const { data } = useBalance(address, { chain: "people" });
+```
+
+Values are pushed, not polled. There is nothing to refetch; new values arrive
+on their own.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useBalance.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useBalance.md</include>

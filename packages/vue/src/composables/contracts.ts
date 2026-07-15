@@ -11,10 +11,11 @@ import { type ChainKey, useRuntime } from "../context";
 import {
   type MaybeGetter,
   type MutationOptions,
-  type MutationResult,
+  type NamedMutation,
   type OptionalVariables,
   type QueryOptions,
   type QueryResult,
+  dropMutate,
   toGetter,
   useTruapiMutation,
   useTruapiQuery,
@@ -121,13 +122,22 @@ export function useContractQuery<T = unknown>(
   );
 }
 
-/** Contract transaction as a mutation: dry-run pre-flight, then sign/submit/watch. */
+/**
+ * Contract transaction: dry-run pre-flight, then sign/submit/watch.
+ *
+ * ```ts
+ * const increment = useContractTx(contract, "increment");
+ * await increment.send();
+ * ```
+ */
 export function useContractTx(
   contract: QueryResult<Contract<ContractDef>>,
   method: string,
   options?: { mutation?: MutationOptions<TxResult, OptionalVariables<readonly unknown[]>> },
-): MutationResult<TxResult, OptionalVariables<readonly unknown[]>> {
-  return useTruapiMutation(async (args: OptionalVariables<readonly unknown[]>) => {
+): NamedMutation<TxResult, OptionalVariables<readonly unknown[]>> & {
+  send: (args?: readonly unknown[]) => Promise<TxResult>;
+} {
+  const mutation = useTruapiMutation(async (args: OptionalVariables<readonly unknown[]>) => {
     const handleSource = contract.data.value;
     if (!handleSource) throw new Error("use-truapi: contract not ready");
     const handle = (handleSource as Record<string, { tx: (...a: unknown[]) => Promise<TxResult> }>)[
@@ -136,16 +146,26 @@ export function useContractTx(
     if (!handle) throw new Error(`use-truapi: contract has no method "${method}"`);
     return handle.tx(...(args ?? []));
   }, options?.mutation);
+  return {
+    ...dropMutate(mutation),
+    send: (args?: readonly unknown[]) => mutation.mutateAsync(args),
+  };
 }
 
-/** Idempotent pallet-revive account mapping — required once before contract txs. */
+/** Idempotent pallet-revive account mapping — required once before contract txs: `ensureMapped()`. */
 export function useEnsureAccountMapped(
   cdmJson: CdmJson,
   options?: { chain?: ChainKey; mutation?: MutationOptions<void, void> },
-): MutationResult<void, void> {
+): NamedMutation<void, void> & {
+  ensureMapped: () => Promise<void>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(
+  const mutation = useTruapiMutation(
     () => runtime.contracts.ensureMapped(cdmJson, options),
     options?.mutation,
   );
+  return {
+    ...dropMutate(mutation),
+    ensureMapped: () => mutation.mutateAsync(),
+  };
 }

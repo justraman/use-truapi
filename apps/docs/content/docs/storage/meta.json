@@ -1,0 +1,5 @@
+{
+  "title": "Cloud storage",
+  "description": "Bulletin-backed uploads and CID retrieval",
+  "pages": ["use-upload", "use-cid", "use-storage-authorization"]
+}

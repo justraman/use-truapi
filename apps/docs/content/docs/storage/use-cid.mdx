@@ -1,0 +1,96 @@
+---
+title: useCid
+description: Fetch CID content from cloud storage, as raw bytes or parsed JSON
+---
+
+`useCid` fetches the content behind a CID via the host's preimage lookup.
+`data` is a `Uint8Array` by default; set `json: true` to parse the bytes as
+JSON instead, and type the result with the generic:
+`useCid<Note>(cid, { json: true })` yields `data` typed as `Note`.
+
+While `cid` is `undefined` the query stays disabled (`isPending` with no
+fetch), so you can pass the CID straight from an upload receipt or route
+params without guarding. Results are cached per (cid, json) pair, and since
+CID content is immutable the cache never goes stale.
+
+This is the read-side companion of [`useUpload`](/docs/storage/use-upload):
+upload bytes, keep `result.cid`, fetch it back anywhere with `useCid`.
+
+## Usage
+
+Fetching back a JSON document stored with `useUpload`:
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useCid } from "@use-truapi/react";
+
+interface Note { title: string; body: string }
+
+function StoredNote({ cid }: { cid?: string }) {
+  const note = useCid<Note>(cid, { json: true });
+
+  if (!cid) return <p>No note stored yet.</p>;
+  if (note.isPending) return <p>Fetching {cid}…</p>;
+  if (note.error) return <p>Failed to fetch: {note.error.message}</p>;
+
+  return (
+    <article>
+      <h3>{note.data.title}</h3>
+      <p>{note.data.body}</p>
+    </article>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useCid } from "@use-truapi/vue";
+
+interface Note { title: string; body: string }
+
+const props = defineProps<{ cid?: string }>();
+const note = useCid<Note>(() => props.cid, { json: true });
+</script>
+
+<template>
+  <p v-if="!props.cid">No note stored yet.</p>
+  <p v-else-if="note.isPending">Fetching {{ props.cid }}…</p>
+  <p v-else-if="note.error">Failed to fetch: {{ note.error.message }}</p>
+  <article v-else>
+    <h3>{{ note.data?.title }}</h3>
+    <p>{{ note.data?.body }}</p>
+  </article>
+</template>
+```
+
+Pass a getter (`() => props.cid`) so the fetch re-runs when the CID changes.
+
+</Tab>
+</Tabs>
+
+Without `json`, `data` is the raw `Uint8Array`; decode it yourself:
+
+```ts
+const fetched = useCid(cid);
+const text = fetched.data ? new TextDecoder().decode(fetched.data) : undefined;
+```
+
+## See also
+
+- [`useUpload`](/docs/storage/use-upload) stores bytes and returns the CID this hook fetches.
+- [`useStorageAuthorization`](/docs/storage/use-storage-authorization) reports the account's storage quota.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useCid.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useCid.md</include>

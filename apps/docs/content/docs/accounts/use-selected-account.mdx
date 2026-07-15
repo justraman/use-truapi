@@ -1,0 +1,75 @@
+---
+title: useSelectedAccount
+description: The currently selected account, or null
+---
+
+`useSelectedAccount` returns the account the user is currently acting as, a
+`SignerAccount` with `address`, `h160Address`, `publicKey`, `name` and
+`source`, or `null` while no wallet is connected. It reads the same shared
+store as [`useAccounts`](/docs/accounts/use-accounts), so `select(address)`
+or `disconnect()` called anywhere updates every consumer at once.
+
+It is the natural input for read hooks: pass `account?.address` straight into
+[`useBalance`](/docs/chain/use-balance) or a chain query without guarding;
+those hooks stay disabled while the address is `undefined`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useSelectedAccount, truncateAddress } from "@use-truapi/react";
+
+function AccountBadge() {
+  const account = useSelectedAccount();
+
+  if (!account) return <p>No account selected.</p>;
+
+  return (
+    <p>
+      {account.name ?? "Unnamed"}: <code>{truncateAddress(account.address)}</code>
+    </p>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useSelectedAccount, truncateAddress } from "@use-truapi/vue";
+
+const account = useSelectedAccount();
+</script>
+
+<template>
+  <p v-if="!account">No account selected.</p>
+  <p v-else>
+    {{ account.name ?? "Unnamed" }}: <code>{{ truncateAddress(account.address) }}</code>
+  </p>
+</template>
+```
+
+The hook returns a `ComputedRef`: use `account.value` in script, it unwraps
+automatically in templates.
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useAccounts`](/docs/accounts/use-accounts) exposes the full account list plus `select` to change the selection.
+- [`useSigner`](/docs/accounts/use-signer) returns the `PolkadotSigner` behind the selected account.
+- [`useBalance`](/docs/chain/use-balance) takes the selected address for a live balance.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useSelectedAccount.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useSelectedAccount.md</include>

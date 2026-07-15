@@ -125,10 +125,11 @@ describe("account composables", () => {
     expect(result.selectedAccount.value).not.toBeNull();
   });
 
-  it("useConnect exposes TanStack mutation state", async () => {
+  it("useConnect exposes a named connect action with mutation state", async () => {
     const { result } = withSetup(() => useConnect());
     expect(result.status.value).toBe("idle");
-    await result.mutateAsync();
+    expect("mutate" in result).toBe(false);
+    await result.connect();
     await flush();
     expect(result.status.value).toBe("success");
     expect(result.data.value?.length).toBeGreaterThan(0);

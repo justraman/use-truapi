@@ -1,0 +1,100 @@
+---
+title: Provider & runtime
+description: TruapiProvider, TruapiPlugin, useRuntime and the QueryClient
+---
+
+Every hook reads from a runtime, the object created from your config that owns
+chain connections, the signer manager and the host controllers. The provider
+makes it available to your component tree.
+
+## Setting up
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { TruapiProvider } from "@use-truapi/react";
+import { config } from "./config";
+
+<TruapiProvider config={config}>
+  <App />
+</TruapiProvider>;
+```
+
+`TruapiProvider` accepts either a `config` (it creates and owns the runtime)
+or a pre-built `runtime` when you need to control its lifecycle yourself:
+
+```tsx
+import { createRuntime, TruapiProvider } from "@use-truapi/react";
+
+const runtime = createRuntime(config);
+<TruapiProvider runtime={runtime}>...</TruapiProvider>;
+```
+
+A provider-owned runtime lives for the page lifetime. Destroying the signer
+manager is terminal, and StrictMode's throwaway unmount would otherwise kill
+it mid-app. Pass `runtime` to own teardown explicitly.
+
+</Tab>
+<Tab value="Vue">
+
+```ts
+import { TruapiPlugin } from "@use-truapi/vue";
+import { config } from "./config";
+
+app.use(TruapiPlugin, { config });
+```
+
+`TruapiPlugin` accepts either a `config` (it creates the runtime) or a
+pre-built `runtime`:
+
+```ts
+import { createRuntime, TruapiPlugin } from "@use-truapi/vue";
+
+app.use(TruapiPlugin, { runtime: createRuntime(config) });
+```
+
+</Tab>
+</Tabs>
+
+## The QueryClient
+
+use-truapi is built on TanStack Query and works with an existing setup:
+
+- Your app already uses TanStack Query: the provider reuses your
+  `QueryClient` (shared cache, one devtools instance). In React, render
+  `TruapiProvider` inside your `QueryClientProvider`; in Vue it detects an
+  installed `VueQueryPlugin`.
+- No TanStack Query yet: a client is created for you with a 5 second
+  `staleTime` so remounts and duplicate hooks don't hammer the RPC.
+- Explicit control: pass `queryClient` to the provider/plugin, or create one
+  with the defaults via `createTruapiQueryClient()`.
+
+## useRuntime
+
+`useRuntime` returns the runtime itself, the escape hatch when no hook covers
+what you need. It exposes the same controllers the hooks are built on:
+`runtime.chains`, `runtime.accounts`, `runtime.tx`, `runtime.contracts`,
+`runtime.chat`, `runtime.statements`, `runtime.payments`,
+`runtime.cloudStorage`, `runtime.host` and `runtime.config`.
+
+```ts
+import { useRuntime } from "@use-truapi/react"; // or "@use-truapi/vue"
+
+const runtime = useRuntime();
+await runtime.host.navigate("https://polkadot.network");
+```
+
+It throws when called outside the provider.
+
+## API reference
+
+### React
+
+<include>../../generated/react/functions/TruapiProvider.md</include>
+
+<include>../../generated/react/interfaces/TruapiProviderProps.md</include>
+
+### Vue
+
+<include>../../generated/vue/interfaces/TruapiPluginOptions.md</include>

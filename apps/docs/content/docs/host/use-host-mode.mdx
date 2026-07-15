@@ -1,0 +1,80 @@
+---
+title: useHostMode
+description: Whether the app runs inside a host container, as a three-state string
+---
+
+`useHostMode` reports where the app is running. It returns `"unknown"` while
+async host detection is still pending, then settles on `"host"` (embedded in
+a host container such as Polkadot Desktop or Mobile) or `"standalone"` (a
+plain web page). If the container can be detected synchronously the mode is
+`"host"` from the very first render, so host-only UI never flashes.
+
+Use this hook when the `"unknown"` window matters, for example to render a
+splash instead of prematurely showing standalone-only UI. When a plain
+boolean is enough, reach for [`useIsHost`](/docs/host/use-is-host) instead.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useHostMode } from "@use-truapi/react";
+
+function Shell({ children }: { children: React.ReactNode }) {
+  const mode = useHostMode();
+
+  if (mode === "unknown") return <p>Detecting environment…</p>;
+
+  return (
+    <>
+      {mode === "standalone" && (
+        <aside>Open this app in Polkadot Desktop for the full experience.</aside>
+      )}
+      {children}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useHostMode } from "@use-truapi/vue";
+
+const mode = useHostMode();
+</script>
+
+<template>
+  <p v-if="mode === 'unknown'">Detecting environment…</p>
+  <template v-else>
+    <aside v-if="mode === 'standalone'">
+      Open this app in Polkadot Desktop for the full experience.
+    </aside>
+    <slot />
+  </template>
+</template>
+```
+
+The composable returns a `ShallowRef`: use `mode.value` in script, plain
+`mode` in templates.
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useIsHost`](/docs/host/use-is-host) is the boolean convenience over the same store.
+- [`useTheme`](/docs/host/use-theme) also follows host detection.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useHostMode.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useHostMode.md</include>

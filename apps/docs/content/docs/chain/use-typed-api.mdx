@@ -1,0 +1,103 @@
+---
+title: useTypedApi
+description: The descriptor-typed PAPI api for a configured chain
+---
+
+`useTypedApi` returns the PAPI typed api of a configured chain: the object
+behind `api.query`, `api.tx`, `api.constants`, `api.event` and `api.apis`,
+typed by the chain's descriptor. The underlying client connection is created
+once and shared with every other chain hook.
+
+Most of the time you don't need it directly: the `build`, `read` and `select`
+callbacks of [`useTx`](/docs/tx/use-tx),
+[`useChainQuery`](/docs/chain/use-chain-query) and
+[`useChainSubscription`](/docs/chain/use-chain-subscription) already hand you
+the typed api. Reach for `useTypedApi` when you need the api object itself:
+imperative calls from event handlers, passing it to helpers, runtime-api
+calls that don't fit a declarative hook.
+
+The result is typed per chain: `useTypedApi({ chain: "people" })` autocompletes
+that chain's pallets and calls.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useTypedApi } from "@use-truapi/react";
+
+function DepositCheck() {
+  const { data: api, isPending, error } = useTypedApi();
+
+  async function logDeposit() {
+    if (!api) return;
+    const existentialDeposit = await api.constants.Balances.ExistentialDeposit();
+    console.log("existential deposit:", existentialDeposit);
+  }
+
+  if (isPending) return <p>Connecting…</p>;
+  if (error) return <p>Failed to connect: {error.message}</p>;
+
+  return (
+    <button type="button" onClick={logDeposit}>
+      Check existential deposit
+    </button>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useTypedApi } from "@use-truapi/vue";
+
+const { data: api, isPending, error } = useTypedApi();
+
+async function logDeposit() {
+  if (!api.value) return;
+  const existentialDeposit = await api.value.constants.Balances.ExistentialDeposit();
+  console.log("existential deposit:", existentialDeposit);
+}
+</script>
+
+<template>
+  <p v-if="isPending">Connecting…</p>
+  <p v-else-if="error">Failed to connect: {{ error.message }}</p>
+  <button v-else type="button" @click="logDeposit">
+    Check existential deposit
+  </button>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+For values you want to render, wrap the read in
+[`useChainQuery`](/docs/chain/use-chain-query) instead of awaiting the api
+yourself; you get caching, `enabled` gating and error states for free:
+
+```ts
+const deposit = useChainQuery(
+  (api) => api.constants.Balances.ExistentialDeposit(),
+  [],
+);
+```
+
+## See also
+
+- [`useChainQuery`](/docs/chain/use-chain-query) runs declarative one-shot reads against this api.
+- [`useChainSubscription`](/docs/chain/use-chain-subscription) subscribes to api observables.
+- [`useChainClient`](/docs/chain/use-chain-client) is the raw client underneath.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useTypedApi.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useTypedApi.md</include>

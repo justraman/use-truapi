@@ -1,0 +1,89 @@
+---
+title: useSignRaw
+description: Sign arbitrary bytes with the selected account
+---
+
+`useSignRaw` signs arbitrary bytes with the currently selected account. Call
+`sign(data)` with a `Uint8Array`; it resolves with the signature bytes. Use
+it for off-chain proofs (signed messages, authentication challenges,
+ownership checks), anything that is not a transaction.
+
+It signs with whatever account is currently selected, so it follows
+[`useAccounts`](/docs/accounts/use-accounts) and `select` automatically. With
+no connected account, or if the user rejects the signing prompt, the call
+rejects and the failure also lands in `error`. Unlike
+[`useConnect`](/docs/accounts/use-connect) and
+[`useLogin`](/docs/accounts/use-login), the argument here is required:
+`sign` always takes the bytes to sign.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useSignRaw, useSelectedAccount } from "@use-truapi/react";
+
+function SignMessage() {
+  const account = useSelectedAccount();
+  const { sign, isPending, error } = useSignRaw();
+
+  async function onSign() {
+    const message = new TextEncoder().encode("I own this account");
+    const signature = await sign(message);
+    console.log("signature:", signature);
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onSign} disabled={!account || isPending}>
+        {isPending ? "Waiting for signature…" : "Sign message"}
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useSignRaw, useSelectedAccount } from "@use-truapi/vue";
+
+const account = useSelectedAccount();
+const { sign, isPending, error } = useSignRaw();
+
+async function onSign() {
+  const message = new TextEncoder().encode("I own this account");
+  const signature = await sign(message);
+  console.log("signature:", signature);
+}
+</script>
+
+<template>
+  <button type="button" :disabled="!account || isPending" @click="onSign">
+    {{ isPending ? "Waiting for signature…" : "Sign message" }}
+  </button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useSigner`](/docs/accounts/use-signer) exposes the underlying `PolkadotSigner` for raw `polkadot-api` use.
+- [`useTx`](/docs/tx/use-tx) signs and submits actual transactions.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useSignRaw.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useSignRaw.md</include>

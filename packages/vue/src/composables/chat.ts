@@ -11,9 +11,10 @@ import {
   type LiveListQueryResult,
   type MaybeGetter,
   type MutationOptions,
-  type MutationResult,
+  type NamedMutation,
   type QueryOptions,
   type QueryResult,
+  dropMutate,
   toGetter,
   useLiveListQuery,
   useLiveQuery,
@@ -119,16 +120,29 @@ export interface SendChatMessageVariables {
   roomId?: string;
 }
 
-/** Send into a room: `mutate({ content: "hi" })`. */
+/** Send into a room: `send("hi")` or `send(content, roomId)`. */
 export function useSendChatMessage(
   roomId?: MaybeGetter<string | undefined>,
   options?: { mutation?: MutationOptions<{ messageId: string }, SendChatMessageVariables> },
-): MutationResult<{ messageId: string }, SendChatMessageVariables> {
+): NamedMutation<{ messageId: string }, SendChatMessageVariables> & {
+  send: (content: ChatMessageContent | string, roomId?: string) => Promise<{ messageId: string }>;
+} {
   const runtime = useRuntime();
   const getRoomId = toGetter(roomId ?? (() => undefined));
-  return useTruapiMutation(({ content, roomId: roomIdOverride }: SendChatMessageVariables) => {
-    const target = roomIdOverride ?? getRoomId();
-    if (!target) throw new Error("use-truapi: no roomId given to useSendChatMessage");
-    return runtime.chat.send(target, content);
-  }, options?.mutation);
+  const mutation = useTruapiMutation(
+    ({ content, roomId: roomIdOverride }: SendChatMessageVariables) => {
+      const target = roomIdOverride ?? getRoomId();
+      if (!target) throw new Error("use-truapi: no roomId given to useSendChatMessage");
+      return runtime.chat.send(target, content);
+    },
+    options?.mutation,
+  );
+  return {
+    ...dropMutate(mutation),
+    send: (content: ChatMessageContent | string, roomIdOverride?: string) =>
+      mutation.mutateAsync({
+        content,
+        ...(roomIdOverride !== undefined ? { roomId: roomIdOverride } : {}),
+      }),
+  };
 }

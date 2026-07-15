@@ -1,0 +1,89 @@
+---
+title: usePaymentBalance
+description: Live RFC-0006 payment balance of the app's purse
+---
+
+`usePaymentBalance` subscribes to the app's RFC-0006 payment balance. `data`
+is a `PaymentBalance` with the spendable `available` amount as a `bigint` in
+planck, updated as the host pushes changes. By default the main purse is
+watched; pass `purse` to watch another product purse.
+
+Components watching the same purse share one host subscription, dropped when
+the last consumer unmounts.
+
+Payments are host-only. Standalone the hook surfaces a
+`HostUnavailableError` on the result instead of loading forever: check
+`error` (or gate on [`useIsHost`](/docs/host/use-is-host)) and hide payment
+UI when it fires.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useFormattedBalance, usePaymentBalance } from "@use-truapi/react";
+
+function PaymentBalance() {
+  const { data: balance, isPending, error } = usePaymentBalance();
+  const available = useFormattedBalance(balance?.available, {
+    decimals: 10,
+    symbol: "PAS",
+  });
+
+  if (error) return <p>Payments unavailable: {error.message}</p>;
+  if (isPending) return <p>Loading balance…</p>;
+
+  return <p>Available: {available}</p>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useFormattedBalance, usePaymentBalance } from "@use-truapi/vue";
+
+const { data: balance, isPending, error } = usePaymentBalance();
+const available = useFormattedBalance(
+  () => balance.value?.available,
+  { decimals: 10, symbol: "PAS" },
+);
+</script>
+
+<template>
+  <p v-if="error">Payments unavailable: {{ error.message }}</p>
+  <p v-else-if="isPending">Loading balance…</p>
+  <p v-else>Available: {{ available }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+A `PaymentPurseId` is a number selecting one of the product's purses; omit
+it for the main purse:
+
+```ts
+const { data } = usePaymentBalance({ purse: 1 });
+```
+
+Values are pushed, not polled. There is nothing to refetch; new values
+arrive on their own.
+
+## See also
+
+- [`useRequestPayment`](/docs/payments/use-request-payment) asks the user to pay; the balance updates when it settles.
+- [`useTopUp`](/docs/payments/use-top-up) funds the purse from a product account or provided keys.
+- [`usePaymentStatus`](/docs/payments/use-payment-status) tracks an individual payment to its terminal state.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/usePaymentBalance.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/usePaymentBalance.md</include>

@@ -52,7 +52,7 @@ const firstError = computed(
         type="button"
         data-testid="counter-increment"
         :disabled="!contract.data.value || increment.isPending.value"
-        @click="increment.mutate()"
+        @click="increment.send().catch(() => {})"
       >
         {{ increment.isPending.value ? "Incrementing…" : "Increment" }}
       </button>
@@ -60,7 +60,7 @@ const firstError = computed(
         type="button"
         data-testid="counter-add"
         :disabled="!contract.data.value || addFive.isPending.value"
-        @click="addFive.mutate([5n])"
+        @click="addFive.send([5n]).catch(() => {})"
       >
         Add 5
       </button>
@@ -68,7 +68,7 @@ const firstError = computed(
         type="button"
         data-testid="map-account"
         :disabled="mapAccount.isPending.value"
-        @click="mapAccount.mutate()"
+        @click="mapAccount.ensureMapped().catch(() => {})"
       >
         Map account
       </button>

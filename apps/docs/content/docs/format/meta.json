@@ -1,0 +1,5 @@
+{
+  "title": "Formatting",
+  "description": "Display helpers for planck amounts",
+  "pages": ["use-formatted-balance"]
+}

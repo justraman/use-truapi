@@ -1,7 +1,7 @@
 {
   "name": "@use-truapi/vue",
   "version": "0.1.0",
-  "description": "Vue composables for TrUAPI / Polkadot host products. One install: chain queries, accounts, transactions, chat, statements, payments, cloud storage.",
+  "description": "Vue composables for TruAPI products. One install: chain queries, accounts, transactions, chat, statements, payments, cloud storage.",
   "license": "MIT",
   "repository": {
     "type": "git",

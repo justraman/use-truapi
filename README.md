@@ -1,9 +1,9 @@
 # use-truapi
 
-**React hooks and Vue composables for building Polkadot host products.**
+**React hooks and Vue composables for building TruAPI products.**
 
 One install, one provider, ~40 hooks. `use-truapi` wraps the entire
-[TrUAPI](https://github.com/paritytech/truapi) /
+[TruAPI](https://github.com/paritytech/truapi) /
 [@parity/product-sdk](https://github.com/paritytech/product-sdk) surface —
 chain queries, wallet accounts, transactions, contracts, chat, statement
 store, payments, notifications and cloud storage — so your frontend never
@@ -32,7 +32,7 @@ Where this is heading: see the [roadmap](./ROADMAP.md).
 ## Why
 
 Products that run inside Polkadot hosts (Desktop / Mobile / Web) talk to the
-chain and the host through **TrUAPI** — the host↔product wire protocol — via a
+chain and the host through **TruAPI** — the host↔product wire protocol — via a
 family of `@parity/product-sdk-*` packages: `host`, `chain-client`, `signer`,
 `tx`, `contracts`, `statement-store`, `cloud-storage`, `address`, `utils`, …
 Each has its own idioms (neverthrow `ResultAsync`, `Result` unions, thrown
@@ -45,8 +45,8 @@ subscriptions that must be re-armed on host interrupt).
 - **One dependency (plus TanStack Query).** The SDK packages are regular
   dependencies of `@use-truapi/core` — you never install or import them.
 - **One async idiom: TanStack Query.** Every read is a `useQuery` result
-  (`{ data, error, isPending, refetch, … }`), every action a `useMutation`
-  result (`{ mutate, mutateAsync, data, error, isPending, reset }`), and
+  (`{ data, error, isPending, refetch, … }`), every action a mutation
+  result with a named method (`{ connect, data, error, isPending, reset }`), and
   every hook accepts TanStack options (`staleTime`, `gcTime`, `enabled`,
   `retry`, …) via `query` / `mutation`. Live subscriptions are bridged into
   the query cache and shared per key across components.
@@ -259,10 +259,10 @@ the `["truapi", …]` keys.
 
 - Reads: `isLoading` → `isPending` (initial load) / `isFetching`; `status`
   values are now TanStack's `pending | success | error`.
-- Mutations: `run(...args)` → `mutate(variables)` / `mutateAsync(variables)`;
-  multi-argument actions now take a single variables object, e.g.
-  `publish.mutateAsync({ data })`, `upload.mutateAsync({ data, options })`,
-  `sendMessage.mutate({ content })`.
+- Mutations: `run(...args)` → a named action per hook, e.g.
+  `publish(data, options?)`, `upload(data, options?)`, `send(content, roomId?)`,
+  `connect(provider?)`. Each returns a promise and the hook result keeps the
+  mutation state (`data`, `error`, `isPending`, `reset`).
 - `useTx` / `useBatchTx` keep `submit(build, options?)` and `phase`; `result`
   is now the mutation's `data`.
 - List hooks (`useStatements`, `useChatMessages`, `useChatRooms`) return
@@ -273,8 +273,9 @@ the `["truapi", …]` keys.
 Identical names in `@use-truapi/react` and `@use-truapi/vue` unless noted.
 Shorthand in the tables: **query → T** is a TanStack `useQuery` result
 (`data: T`, `error`, `isPending`, `refetch`, …); **live T** is the same shape
-fed by a shared host subscription; **mutation → T** is a TanStack
-`useMutation` result (`mutate`/`mutateAsync(variables)` resolving to `T`).
+fed by a shared host subscription; **mutation → T** is a
+mutation result with state fields (`data`, `error`, `isPending`, `reset`) and a
+named action resolving to `T`.
 
 ### Host & environment
 
@@ -333,7 +334,7 @@ uses `defaultChain` (or the first configured chain).
 | `useContract(cdmJson, library, { chain?, live? })` | query → contract handle | manifests from `@tambola/…`-style CDM packages; `live` resolves registry addresses |
 | `useContractAt(address, abi, { chain? })` | query → contract handle | ad-hoc, no manifest |
 | `useContractQuery(contract, method, args)` | query | dry-run read; errors on revert |
-| `useContractTx(contract, method)` | mutation → `TxResult` | `mutateAsync([...args])`; dry-run pre-flight, then sign & watch |
+| `useContractTx(contract, method)` | mutation → `TxResult` | `send([...args])`; dry-run pre-flight, then sign & watch |
 | `useEnsureAccountMapped(cdmJson)` | mutation | one-time pallet-revive account mapping |
 
 ### Chat (host-only)
@@ -345,14 +346,14 @@ uses `defaultChain` (or the first configured chain).
 | `useChatRooms()` | live room list |
 | `useChatMessages(roomId, { limit? })` | live list of `MessagePosted` events + `clear` |
 | `useChatActions(handler)` | raw action stream (messages, buttons, commands) |
-| `useSendChatMessage(roomId?)` | mutation → `{ messageId }`; `mutate({ content, roomId? })`, plain string content becomes a Text message |
+| `useSendChatMessage(roomId?)` | mutation → `{ messageId }`; `send(content, roomId?)`, plain string content becomes a Text message |
 
 ### Statement store (ephemeral pub/sub)
 
 | Hook | Returns | Notes |
 | --- | --- | --- |
 | `useStatements<T>({ topic2?, limit? })` | live list + `clear` | empty & inert standalone |
-| `usePublishStatement<T>()` | mutation → `boolean` | `mutate({ data, options? })`; JSON ≤ 512 bytes; `false` standalone |
+| `usePublishStatement<T>()` | mutation → `boolean` | `publish(data, options?)`; JSON ≤ 512 bytes; `false` standalone |
 | `useStatementChannel<T>({ topic2? })` | `{ values, write, ready }` | last-write-wins channels (presence, cursors) |
 
 ### Payments (RFC-0006, host-only)
@@ -360,15 +361,15 @@ uses `defaultChain` (or the first configured chain).
 | Hook | Returns |
 | --- | --- |
 | `usePaymentBalance({ purse? })` | live balance |
-| `useRequestPayment()` | mutation → `{ id }`; `mutate({ amount, destination, from? })` (host shows confirmation UI) |
-| `useTopUp()` | mutation; `mutate({ amount, source, into? })` |
+| `useRequestPayment()` | mutation → `{ id }`; `request(amount, destination, from?)` (host shows confirmation UI) |
+| `useTopUp()` | mutation; `topUp(amount, source, into?)` |
 | `usePaymentStatus(paymentId)` | live `Processing \| Completed \| Failed` |
 
 ### Cloud storage (Bulletin chain)
 
 | Hook | Returns | Notes |
 | --- | --- | --- |
-| `useUpload()` | mutation → `StoreResult` | `mutate({ data, options? })`; chunking + CID handled for you; needs `cloudStorage: { environment }` in config |
+| `useUpload()` | mutation → `StoreResult` | `upload(data, options?)`; chunking + CID handled for you; needs `cloudStorage: { environment }` in config |
 | `useCid(cid, { json? })` | query → bytes or parsed JSON | host preimage lookup |
 | `useStorageAuthorization(address?)` | query → quota status | |
 
@@ -412,7 +413,7 @@ throw `HostUnavailableError`** so you can gate UI with `useIsHost()`.
         ┌──────────┴───────────┐
   @parity/product-sdk-*   polkadot-api    ← host getters, SignerManager, submitAndWatch, PAPI
         └──────────┬──────────┘
-             @parity/truapi               ← TrUAPI wire protocol (SCALE over postMessage)
+             @parity/truapi               ← TruAPI wire protocol (SCALE over postMessage)
                    │
         Polkadot host (Desktop / Mobile / Web)
 ```

@@ -1,0 +1,138 @@
+---
+title: useStatementChannel
+description: Last-write-wins channels for presence, cursors and ephemeral state
+---
+
+`useStatementChannel` layers last-write-wins channels on top of the
+statement store. Where [`useStatements`](/docs/statements/use-statements)
+accumulates a feed, a channel keeps exactly one value per channel name: a
+newer write replaces the previous one. Use it for presence, live cursors,
+typing indicators and other state where only the latest value matters.
+
+Keys in `values` are hex-encoded channel hashes, not the names you wrote
+to, so put identifying fields (peer id, user name) in the payload and render
+from those. A `timestamp` field in the payload drives last-write-wins
+ordering; when omitted, the current time is filled in on write.
+
+Channels are host-only. Standalone, `ready` stays `false`, `values` stays
+empty, and `write` resolves `false`.
+
+## Usage
+
+A typed presence channel: each client heartbeats its own channel on an
+interval and renders everyone's latest announcement from the `values` map.
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useStatementChannel } from "@use-truapi/react";
+import { useEffect } from "react";
+
+interface Presence {
+  peerId: string;
+  name: string;
+  timestamp: number;
+}
+
+function WhoIsOnline({ peerId, name }: { peerId: string; name: string }) {
+  const { values, write, ready } = useStatementChannel<Presence>();
+
+  useEffect(() => {
+    if (!ready) return;
+    const announce = () =>
+      write(`presence/${peerId}`, { peerId, name, timestamp: Date.now() });
+    void announce();
+    const interval = setInterval(announce, 10_000);
+    return () => clearInterval(interval);
+  }, [ready, write, peerId, name]);
+
+  if (!ready) return <p>Presence unavailable (running standalone).</p>;
+
+  return (
+    <ul>
+      {[...values.values()].map((peer) => (
+        <li key={peer.peerId}>
+          {peer.name}, seen {new Date(peer.timestamp).toLocaleTimeString()}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useStatementChannel } from "@use-truapi/vue";
+import { onUnmounted, watch } from "vue";
+
+interface Presence {
+  peerId: string;
+  name: string;
+  timestamp: number;
+}
+
+const props = defineProps<{ peerId: string; name: string }>();
+
+const { values, write, ready } = useStatementChannel<Presence>();
+
+let interval: ReturnType<typeof setInterval> | undefined;
+watch(ready, (isReady) => {
+  if (!isReady) return;
+  const announce = () =>
+    write(`presence/${props.peerId}`, {
+      peerId: props.peerId,
+      name: props.name,
+      timestamp: Date.now(),
+    });
+  void announce();
+  interval = setInterval(announce, 10_000);
+});
+onUnmounted(() => clearInterval(interval));
+</script>
+
+<template>
+  <p v-if="!ready">Presence unavailable (running standalone).</p>
+  <ul v-else>
+    <li v-for="peer in [...values.values()]" :key="peer.peerId">
+      {{ peer.name }}, seen {{ new Date(peer.timestamp).toLocaleTimeString() }}
+    </li>
+  </ul>
+</template>
+```
+
+In Vue, `values` and `ready` are refs: access them with `.value` in script
+and directly in templates.
+
+</Tab>
+</Tabs>
+
+Channels live under your app topic; pass `topic2` to partition them further.
+Two components with different `topic2` values see fully independent channel
+maps:
+
+```ts
+const cursors = useStatementChannel<Cursor>({ topic2: `doc-${docId}` });
+```
+
+## See also
+
+- [`useStatements`](/docs/statements/use-statements) is an accumulating feed instead of one value per channel.
+- [`usePublishStatement`](/docs/statements/use-publish-statement) for one-off publishes.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useStatementChannel.md</include>
+
+<include>../../../generated/react/interfaces/StatementChannel.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useStatementChannel.md</include>
+
+<include>../../../generated/vue/interfaces/StatementChannel.md</include>

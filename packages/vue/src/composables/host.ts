@@ -5,9 +5,10 @@ import { useRuntime } from "../context";
 import {
   type MaybeGetter,
   type MutationOptions,
-  type MutationResult,
+  type NamedMutation,
   type QueryOptions,
   type QueryResult,
+  dropMutate,
   toGetter,
   useStore,
   useTruapiMutation,
@@ -32,42 +33,68 @@ export function useTheme(): ShallowRef<ThemeState> {
   return useStore(useRuntime().theme);
 }
 
-/** RFC-0002 remote permissions (ChainSubmit, StatementSubmit, Remote domains, …). */
+/** RFC-0002 remote permissions (ChainSubmit, StatementSubmit, Remote domains, …): `request(permission)`. */
 export function usePermission(options?: {
   mutation?: MutationOptions<boolean, Parameters<HostController["requestPermission"]>[0]>;
-}): MutationResult<boolean, Parameters<HostController["requestPermission"]>[0]> {
+}): NamedMutation<boolean, Parameters<HostController["requestPermission"]>[0]> & {
+  request: (permission: Parameters<HostController["requestPermission"]>[0]) => Promise<boolean>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(
-    (permission) => runtime.host.requestPermission(permission),
+  const mutation = useTruapiMutation(
+    (permission: Parameters<HostController["requestPermission"]>[0]) =>
+      runtime.host.requestPermission(permission),
     options?.mutation,
   );
+  return {
+    ...dropMutate(mutation),
+    request: (permission) => mutation.mutateAsync(permission),
+  };
 }
 
-/** Device permissions (Camera, Notifications, Clipboard, …). */
+/** Device permissions (Camera, Notifications, Clipboard, …): `request(kind)`. */
 export function useDevicePermission(options?: {
   mutation?: MutationOptions<boolean, Parameters<HostController["requestDevicePermission"]>[0]>;
-}): MutationResult<boolean, Parameters<HostController["requestDevicePermission"]>[0]> {
+}): NamedMutation<boolean, Parameters<HostController["requestDevicePermission"]>[0]> & {
+  request: (kind: Parameters<HostController["requestDevicePermission"]>[0]) => Promise<boolean>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation((kind) => runtime.host.requestDevicePermission(kind), options?.mutation);
+  const mutation = useTruapiMutation(
+    (kind: Parameters<HostController["requestDevicePermission"]>[0]) =>
+      runtime.host.requestDevicePermission(kind),
+    options?.mutation,
+  );
+  return {
+    ...dropMutate(mutation),
+    request: (kind) => mutation.mutateAsync(kind),
+  };
 }
 
 type ResourceAllocationResult = Awaited<ReturnType<HostController["requestResourceAllocation"]>>;
 
-/** RFC-0010 allowances (StatementStoreAllowance, AutoSigning, …) — one prompt up front. */
+/** RFC-0010 allowances (StatementStoreAllowance, AutoSigning, …), one prompt up front: `request(resources)`. */
 export function useResourceAllocation(options?: {
   mutation?: MutationOptions<
     ResourceAllocationResult,
     Parameters<HostController["requestResourceAllocation"]>[0]
   >;
-}): MutationResult<
+}): NamedMutation<
   ResourceAllocationResult,
   Parameters<HostController["requestResourceAllocation"]>[0]
-> {
+> & {
+  request: (
+    resources: Parameters<HostController["requestResourceAllocation"]>[0],
+  ) => Promise<ResourceAllocationResult>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation(
-    (resources) => runtime.host.requestResourceAllocation(resources),
+  const mutation = useTruapiMutation(
+    (resources: Parameters<HostController["requestResourceAllocation"]>[0]) =>
+      runtime.host.requestResourceAllocation(resources),
     options?.mutation,
   );
+  return {
+    ...dropMutate(mutation),
+    request: (resources) => mutation.mutateAsync(resources),
+  };
 }
 
 /** Host deep-link navigation: `.dot` routes in-container, `https://` external. */
@@ -92,26 +119,40 @@ export function useFeatureSupported(
   );
 }
 
-/** RFC-0007 deterministic entropy — same key, same wallet ⇒ same 32 bytes. */
+/** RFC-0007 deterministic entropy — same key, same wallet ⇒ same 32 bytes: `derive(key)`. */
 export function useDeriveEntropy(options?: {
   mutation?: MutationOptions<Uint8Array, Uint8Array>;
-}): MutationResult<Uint8Array, Uint8Array> {
+}): NamedMutation<Uint8Array, Uint8Array> & {
+  derive: (key: Uint8Array) => Promise<Uint8Array>;
+} {
   const runtime = useRuntime();
-  return useTruapiMutation((key) => runtime.host.deriveEntropy(key), options?.mutation);
+  const mutation = useTruapiMutation(
+    (key: Uint8Array) => runtime.host.deriveEntropy(key),
+    options?.mutation,
+  );
+  return {
+    ...dropMutate(mutation),
+    derive: (key: Uint8Array) => mutation.mutateAsync(key),
+  };
 }
 
 type NotificationId = Awaited<ReturnType<HostController["pushNotification"]>>;
 
-export interface NotificationsApi {
-  push: MutationResult<NotificationId, Parameters<HostController["pushNotification"]>[0]>;
+export interface NotificationsApi
+  extends NamedMutation<NotificationId, Parameters<HostController["pushNotification"]>[0]> {
+  push: (input: Parameters<HostController["pushNotification"]>[0]) => Promise<NotificationId>;
   cancel: (id: NotificationId) => Promise<void>;
 }
 
 /** RFC-0019 scheduled push notifications (host-only; throws HostUnavailableError standalone). */
 export function useNotifications(): NotificationsApi {
   const runtime = useRuntime();
+  const mutation = useTruapiMutation((input: Parameters<HostController["pushNotification"]>[0]) =>
+    runtime.host.pushNotification(input),
+  );
   return {
-    push: useTruapiMutation((input) => runtime.host.pushNotification(input)),
+    ...dropMutate(mutation),
+    push: (input) => mutation.mutateAsync(input),
     cancel: (id) => runtime.host.cancelNotification(id),
   };
 }

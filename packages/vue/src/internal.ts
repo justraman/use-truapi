@@ -47,8 +47,8 @@ export type MutationOptions<TData, TVariables> = Omit<
   "mutationFn"
 >;
 
-/** Mutation variables that may be omitted entirely: `mutate()` instead of `mutate(undefined)`. */
-// biome-ignore lint/suspicious/noConfusingVoidType: void is what lets TanStack's mutate() be called bare
+/** Mutation variables that may be omitted entirely so the named action can be called bare. */
+// biome-ignore lint/suspicious/noConfusingVoidType: void is what lets the action be called bare
 export type OptionalVariables<T> = T | void;
 
 export type QueryResult<T> = UseQueryReturnType<T, Error>;
@@ -58,6 +58,22 @@ export type MutationResult<TData, TVariables> = UseMutationReturnType<
   TVariables,
   unknown
 >;
+
+/**
+ * Mutation state without the generic `mutate`/`mutateAsync` — every mutation
+ * composable exposes a named action instead (`connect`, `upload`, `publish`, …).
+ */
+export type NamedMutation<TData, TVariables> = Omit<
+  MutationResult<TData, TVariables>,
+  "mutate" | "mutateAsync"
+>;
+
+export function dropMutate<TData, TVariables>(
+  mutation: MutationResult<TData, TVariables>,
+): NamedMutation<TData, TVariables> {
+  const { mutate: _mutate, mutateAsync: _mutateAsync, ...state } = mutation;
+  return state;
+}
 
 function mergedEnabled<T>(gate: () => boolean, query?: QueryOptions<T>): boolean {
   if (gate() === false) return false;

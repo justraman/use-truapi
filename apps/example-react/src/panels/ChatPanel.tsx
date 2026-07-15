@@ -85,7 +85,7 @@ function HostChat() {
           data-testid="chat-send"
           disabled={send.isPending || draft === ""}
           onClick={() => {
-            send.mutate({ content: draft });
+            void send.send(draft).catch(() => {});
             setDraft("");
           }}
         >

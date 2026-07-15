@@ -1,0 +1,122 @@
+---
+title: useTx
+description: Sign, submit and watch a transaction
+---
+
+`useTx` submits transactions built against the typed PAPI api. Call
+`submit(build, options?)`: it signs with the connected account, broadcasts,
+and resolves once the transaction reaches a best block (or finality with
+`waitFor: "finalized"`). `phase` reports where the transaction is:
+`"idle" → "signing" → "broadcasting" → "in-block" → "finalized" | "error"`.
+
+On first submit the hook requests the `ChainSubmit` permission and connects
+the signer if needed. No manual pre-flight.
+
+The resolved `TxResult` reports dispatch failures as data: check `result.ok`,
+a failed dispatch carries the decoded `dispatchError`. Thrown errors
+(`TxSigningRejectedError`, `TxError`) mean the transaction never made it into
+a block.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useTx } from "@use-truapi/react";
+import { MultiAddress } from "@polkadot-api/descriptors";
+
+function Transfer({ dest, value }: { dest: string; value: bigint }) {
+  const { submit, phase, isPending, error } = useTx();
+
+  async function onSend() {
+    const result = await submit((api) =>
+      api.tx.Balances.transfer_keep_alive({
+        dest: MultiAddress.Id(dest),
+        value,
+      }),
+    );
+    if (!result.ok) console.error("dispatch failed", result.dispatchError);
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onSend} disabled={isPending}>
+        {isPending ? phase : "Send"}
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useTx } from "@use-truapi/vue";
+import { MultiAddress } from "@polkadot-api/descriptors";
+
+const props = defineProps<{ dest: string; value: bigint }>();
+const { submit, phase, isPending, error } = useTx();
+
+async function onSend() {
+  const result = await submit((api) =>
+    api.tx.Balances.transfer_keep_alive({
+      dest: MultiAddress.Id(props.dest),
+      value: props.value,
+    }),
+  );
+  if (!result.ok) console.error("dispatch failed", result.dispatchError);
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onSend">
+    {{ isPending ? phase : "Send" }}
+  </button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+To wait for finality, or observe each phase transition:
+
+```ts
+const result = await submit(
+  (api) => api.tx.System.remark({ remark: Binary.fromText("hello") }),
+  {
+    waitFor: "finalized",
+    onStatus: (status) => console.log("tx phase:", status),
+  },
+);
+```
+
+To build against a specific chain, pass its key; the `build` callback then
+receives that chain's typed api:
+
+```ts
+const { submit } = useTx({ chain: "people" });
+```
+
+`reset()` clears the mutation state and returns `phase` to `"idle"`.
+
+## See also
+
+- [`useBatchTx`](/docs/tx/use-batch-tx) submits several calls atomically via `Utility.batch_all`.
+- [`useContractTx`](/docs/contracts/use-contract-tx) is the same lifecycle for contract calls.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useTx.md</include>
+
+<include>../../../generated/react/interfaces/UseTxResult.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useTx.md</include>

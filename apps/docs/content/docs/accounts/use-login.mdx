@@ -1,0 +1,92 @@
+---
+title: useLogin
+description: RFC-0009 host login, called from a user gesture
+---
+
+`useLogin` performs an RFC-0009 login against the Polkadot host. Call
+`login(reason?)` from a click (or similar) handler: the host shows its own
+consent UI and rejects requests that do not originate from a user gesture, so
+never call it from an effect or on mount. The optional `reason` is a
+human-readable string shown in the host's consent prompt.
+
+The promise resolves to a `LoginResult`, and the user declining is reported
+as data rather than an exception:
+
+- `"Success"`: the user approved the login.
+- `"AlreadyConnected"`: the session was already established. This is also
+  what you get standalone (outside a host container), where login is a no-op
+  success.
+- `"Rejected"`: the user declined.
+
+The hook also exposes mutation state (`data`, `error`, `isPending`,
+`reset`). After a successful login,
+[`useUserId`](/docs/accounts/use-user-id) can resolve the user's DotNS
+username.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useLogin } from "@use-truapi/react";
+
+function LoginButton() {
+  const { login, isPending, data, error } = useLogin();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void login("Sign in to sync your profile").catch(() => {})}
+        disabled={isPending}
+      >
+        {isPending ? "Waiting for approval…" : "Log in"}
+      </button>
+      {data === "Rejected" && <p role="alert">Login was declined.</p>}
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useLogin } from "@use-truapi/vue";
+
+const { login, isPending, data, error } = useLogin();
+
+function onLogin() {
+  void login("Sign in to sync your profile").catch(() => {});
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onLogin">
+    {{ isPending ? "Waiting for approval…" : "Log in" }}
+  </button>
+  <p v-if="data === 'Rejected'" role="alert">Login was declined.</p>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useUserId`](/docs/accounts/use-user-id) resolves the DotNS username available after login.
+- [`useConnect`](/docs/accounts/use-connect) connects the wallet, the usual first step.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useLogin.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useLogin.md</include>

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://typedoc-plugin-markdown.org/schema.json",
+  "plugin": ["typedoc-plugin-markdown"],
+  "entryPoints": ["../../packages/react/src/index.ts"],
+  "tsconfig": "../../packages/react/tsconfig.json",
+  "out": "generated/react",
+  "readme": "none",
+  "outputFileStrategy": "members",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": false,
+  "disableSources": true,
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "hidePageTitle": true,
+  "useCodeBlocks": true,
+  "parametersFormat": "table",
+  "enumMembersFormat": "table",
+  "sanitizeComments": true,
+  "logLevel": "Warn"
+}

@@ -1,0 +1,134 @@
+---
+title: useContractTx
+description: Contract write with dry-run pre-flight, then sign, submit and watch
+---
+
+`useContractTx` binds one contract method as a write. Call `send(args?)`: it
+dry-runs the call first, then signs with the connected account, submits and
+watches the transaction, resolving with a `TxResult` once it is in a block.
+Args are optional, so call `send()` bare for no-argument methods or pass the
+args array (`send([5n])`). Mutation state (`data`, `error`, `isPending`,
+`reset`) tracks the last send.
+
+Like [`useTx`](/docs/tx/use-tx), the resolved `TxResult` reports dispatch
+failure as data: check `result.ok`, a failed dispatch carries the decoded
+`dispatchError`. `send` rejects (and sets `error`) when the handle hasn't
+resolved yet, when the method name doesn't exist on the handle, when the
+dry-run fails, or when the user rejects the signature.
+
+Before the first contract transaction from an account, the account must be
+mapped in pallet-revive; see
+[`useEnsureAccountMapped`](/docs/contracts/use-ensure-account-mapped).
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useContract, useContractQuery, useContractTx } from "@use-truapi/react";
+import { COUNTER_LIBRARY, cdmJson } from "./counter-contract";
+
+function Counter() {
+  const contract = useContract(cdmJson, COUNTER_LIBRARY);
+  const count = useContractQuery<bigint>(contract.data, "getCount", []);
+  const increment = useContractTx(contract.data, "increment", {
+    mutation: { onSuccess: () => count.refetch() },
+  });
+  const add = useContractTx(contract.data, "add", {
+    mutation: { onSuccess: () => count.refetch() },
+  });
+
+  return (
+    <>
+      <p>Count: {count.data?.toString() ?? "…"}</p>
+      <button
+        type="button"
+        disabled={!contract.data || increment.isPending}
+        onClick={() => void increment.send().catch(() => {})}
+      >
+        {increment.isPending ? "Incrementing…" : "Increment"}
+      </button>
+      <button
+        type="button"
+        disabled={!contract.data || add.isPending}
+        onClick={() => void add.send([5n]).catch(() => {})}
+      >
+        Add 5
+      </button>
+      {increment.error && <p role="alert">{increment.error.message}</p>}
+    </>
+  );
+}
+```
+
+In React, pass the resolved handle, `contract.data`, as the first argument.
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useContract, useContractQuery, useContractTx } from "@use-truapi/vue";
+import { COUNTER_LIBRARY, cdmJson } from "./counter-contract";
+
+const contract = useContract(cdmJson, COUNTER_LIBRARY);
+const count = useContractQuery<bigint>(contract, "getCount", []);
+const increment = useContractTx(contract, "increment", {
+  mutation: { onSuccess: () => count.refetch() },
+});
+const add = useContractTx(contract, "add", {
+  mutation: { onSuccess: () => count.refetch() },
+});
+</script>
+
+<template>
+  <p>Count: {{ count.data?.toString() ?? "…" }}</p>
+  <button
+    type="button"
+    :disabled="!contract.data || increment.isPending"
+    @click="void increment.send().catch(() => {})"
+  >
+    {{ increment.isPending ? "Incrementing…" : "Increment" }}
+  </button>
+  <button
+    type="button"
+    :disabled="!contract.data || add.isPending"
+    @click="void add.send([5n]).catch(() => {})"
+  >
+    Add 5
+  </button>
+  <p v-if="increment.error" role="alert">{{ increment.error.message }}</p>
+</template>
+```
+
+In Vue, pass the whole query result returned by `useContract` or
+`useContractAt`; the write unwraps `contract.data` when it runs.
+
+</Tab>
+</Tabs>
+
+Failures always land in `error`, so a fire-and-forget click handler only
+needs `.catch(() => {})` to silence the rejected promise. To inspect the
+dispatch outcome, await the result:
+
+```ts
+const result = await increment.send();
+if (!result.ok) console.error("dispatch failed", result.dispatchError);
+```
+
+## See also
+
+- [`useEnsureAccountMapped`](/docs/contracts/use-ensure-account-mapped) is required once before the first contract tx.
+- [`useContractQuery`](/docs/contracts/use-contract-query) is the read-side counterpart; refetch it after writes.
+- [`useTx`](/docs/tx/use-tx) is the same lifecycle for plain transactions, with a granular `phase`.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useContractTx.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useContractTx.md</include>

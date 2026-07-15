@@ -1,0 +1,80 @@
+---
+title: useHostNavigate
+description: Host deep-link navigation, .dot routes in-container and https external
+---
+
+`useHostNavigate` returns a stable async function that asks the host to
+navigate to a URL. The host resolves the destination itself: a `.dot` deep
+link (`https://search.dot`) routes to another app or route inside the
+container, a regular `https://` URL opens externally in the system browser.
+
+It is a plain function, not a mutation: there is no `isPending` or `error`
+state to render. It rejects with `HostUnavailableError` when no host is
+present and `HostCallFailedError` when the host denies the navigation, so
+catch the promise if a failure matters. Standalone, fall back to a regular
+anchor or `window.open`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useHostNavigate, useIsHost } from "@use-truapi/react";
+
+function DocsLink() {
+  const isHost = useIsHost();
+  const navigate = useHostNavigate();
+
+  if (!isHost) {
+    return <a href="https://docs.example.com" target="_blank" rel="noreferrer">Docs</a>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void navigate("https://search.dot").catch(() => {})}
+    >
+      Open Search
+    </button>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useHostNavigate, useIsHost } from "@use-truapi/vue";
+
+const isHost = useIsHost();
+const navigate = useHostNavigate();
+
+function onOpen() {
+  void navigate("https://search.dot").catch(() => {});
+}
+</script>
+
+<template>
+  <a v-if="!isHost" href="https://docs.example.com" target="_blank" rel="noreferrer">Docs</a>
+  <button v-else type="button" @click="onOpen">Open Search</button>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useIsHost`](/docs/host/use-is-host) decides between host navigation and a plain link.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useHostNavigate.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useHostNavigate.md</include>

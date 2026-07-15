@@ -28,7 +28,7 @@ const presence = useStatementChannel<PresenceValue>({ topic2: "presence" });
 const draft = ref("");
 
 function onPublish() {
-  void publish.mutateAsync({ data: { text: draft.value } }).catch(() => {});
+  void publish.publish({ text: draft.value }).catch(() => {});
 }
 
 function onPresence() {

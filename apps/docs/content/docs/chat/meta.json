@@ -1,0 +1,12 @@
+{
+  "title": "Chat",
+  "description": "Host chat rooms, live messages and bots",
+  "pages": [
+    "use-chat-room",
+    "use-chat-bot",
+    "use-chat-rooms",
+    "use-chat-messages",
+    "use-chat-actions",
+    "use-send-chat-message"
+  ]
+}

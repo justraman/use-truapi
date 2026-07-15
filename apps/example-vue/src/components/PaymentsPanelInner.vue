@@ -26,25 +26,22 @@ const firstError = computed(
 );
 
 function onTopUp() {
-  topUp.mutate({
-    amount: 1_000_000_000n, // 0.1 PAS
-    source: { tag: "ProductAccount", value: { derivationIndex: 0 } },
-  });
+  void topUp
+    .topUp(1_000_000_000n /* 0.1 PAS */, {
+      tag: "ProductAccount",
+      value: { derivationIndex: 0 },
+    })
+    .catch(() => {});
 }
 
 function onRequest() {
   if (!selected.value) return;
-  request.mutate(
-    {
-      amount: 500_000_000n, // 0.05 PAS
-      destination: ss58ToH160(selected.value.address),
-    },
-    {
-      onSuccess: ({ id }) => {
-        lastPaymentId.value = id;
-      },
-    },
-  );
+  void request
+    .request(500_000_000n /* 0.05 PAS */, ss58ToH160(selected.value.address))
+    .then(({ id }) => {
+      lastPaymentId.value = id;
+    })
+    .catch(() => {});
 }
 </script>
 

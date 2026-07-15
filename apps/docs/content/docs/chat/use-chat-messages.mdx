@@ -1,0 +1,152 @@
+---
+title: useChatMessages
+description: Live messages for a room, as a bounded accumulating list
+---
+
+`useChatMessages` accumulates `MessagePosted` events for a room. `data` is a
+`ChatMessage[]`, newest last. This is a live tail, not a history fetch: the
+list starts empty and grows as events arrive while subscribed. It is bounded;
+once it reaches `limit` (default `200`) the oldest entries are dropped as new
+ones arrive. The result also exposes `clear()`, which resets the list to
+empty.
+
+The subscription is shared per room: any number of components can watch the
+same `roomId` and only one action watch is held. Accumulated messages live in
+the query cache, so they survive remounts while the cache entry is retained.
+
+While `roomId` is `undefined` the hook stays disabled, so you can pass it
+straight from route params without guarding. Chat is host-only: running
+standalone the result flips to the error state with `HostUnavailableError`.
+
+## Usage
+
+A minimal chat panel: register the room, list its messages, send on submit.
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useState } from "react";
+import { useChatMessages, useChatRoom, useSendChatMessage } from "@use-truapi/react";
+
+const room = {
+  roomId: "support",
+  name: "Support",
+  icon: "https://example.com/support.png",
+};
+
+function SupportChat() {
+  const { isPending: opening, error: roomError } = useChatRoom(room);
+  const { data: messages, clear, error } = useChatMessages(room.roomId);
+  const { send, isPending: sending } = useSendChatMessage(room.roomId);
+  const [draft, setDraft] = useState("");
+
+  if (opening) return <p>Opening room…</p>;
+  if (roomError) return <p>Chat unavailable: {roomError.message}</p>;
+
+  return (
+    <>
+      {error && <p role="alert">{error.message}</p>}
+      <ul>
+        {messages?.map((m, i) => (
+          <li key={`${m.receivedAt}-${i}`}>
+            <b>{m.peer}</b>:{" "}
+            {m.content.tag === "Text" ? m.content.value.text : `[${m.content.tag}]`}
+          </li>
+        ))}
+      </ul>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send(draft).catch(() => {});
+          setDraft("");
+        }}
+      >
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} />
+        <button type="submit" disabled={sending || draft === ""}>
+          Send
+        </button>
+      </form>
+      <button type="button" onClick={clear}>
+        Clear
+      </button>
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { ref } from "vue";
+import { useChatMessages, useChatRoom, useSendChatMessage } from "@use-truapi/vue";
+
+const room = {
+  roomId: "support",
+  name: "Support",
+  icon: "https://example.com/support.png",
+};
+
+const { isPending: opening, error: roomError } = useChatRoom(room);
+const { data: messages, clear, error } = useChatMessages(room.roomId);
+const { send, isPending: sending } = useSendChatMessage(room.roomId);
+const draft = ref("");
+
+function onSubmit() {
+  void send(draft.value).catch(() => {});
+  draft.value = "";
+}
+</script>
+
+<template>
+  <p v-if="opening">Opening room…</p>
+  <p v-else-if="roomError">Chat unavailable: {{ roomError.message }}</p>
+  <template v-else>
+    <p v-if="error" role="alert">{{ error.message }}</p>
+    <ul>
+      <li v-for="(m, i) in messages" :key="`${m.receivedAt}-${i}`">
+        <b>{{ m.peer }}</b>:
+        {{ m.content.tag === "Text" ? m.content.value.text : `[${m.content.tag}]` }}
+      </li>
+    </ul>
+    <form @submit.prevent="onSubmit">
+      <input v-model="draft" />
+      <button type="submit" :disabled="sending || draft === ''">Send</button>
+    </form>
+    <button type="button" @click="clear">Clear</button>
+  </template>
+</template>
+```
+
+In Vue, `roomId` may also be a getter (`() => route.params.roomId`); the
+subscription re-attaches when it changes.
+
+</Tab>
+</Tabs>
+
+To keep more (or fewer) messages, pass a `limit`:
+
+```ts
+const { data } = useChatMessages(roomId, { limit: 50 });
+```
+
+## See also
+
+- [`useSendChatMessage`](/docs/chat/use-send-chat-message) posts into the room.
+- [`useChatActions`](/docs/chat/use-chat-actions) is the raw stream underneath, including button presses and commands.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useChatMessages.md</include>
+
+<include>../../../generated/react/interfaces/ChatMessage.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useChatMessages.md</include>
+
+<include>../../../generated/vue/interfaces/ChatMessage.md</include>

@@ -1,0 +1,14 @@
+{
+  "title": "Accounts",
+  "description": "Wallet connection, account selection and signing",
+  "pages": [
+    "use-accounts",
+    "use-selected-account",
+    "use-connect",
+    "use-disconnect",
+    "use-signer",
+    "use-login",
+    "use-user-id",
+    "use-sign-raw"
+  ]
+}

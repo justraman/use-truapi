@@ -1,0 +1,92 @@
+---
+title: usePaymentStatus
+description: Track a payment id to its terminal state
+---
+
+`usePaymentStatus` subscribes to the status of a single RFC-0006 payment,
+the `id` resolved by
+[`useRequestPayment`](/docs/payments/use-request-payment). `data` is a
+`PaymentStatus` tagged union: `"Processing"` while in flight, then the
+terminal `"Completed"` or `"Failed"` (which carries a human-readable
+`reason`).
+
+While `paymentId` is `undefined` the hook stays disabled, so you can pass
+the id straight from your request-payment state without guarding; the
+subscription attaches the moment an id exists, and is shared per payment id.
+
+Payments are host-only: standalone (with an id set) the hook surfaces a
+`HostUnavailableError` on the result.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { usePaymentStatus } from "@use-truapi/react";
+
+function PaymentTracker({ paymentId }: { paymentId: string | undefined }) {
+  const { data: status, error } = usePaymentStatus(paymentId);
+
+  if (!paymentId) return null;
+  if (error) return <p role="alert">{error.message}</p>;
+
+  switch (status?.tag) {
+    case "Processing":
+      return <p>Payment processing…</p>;
+    case "Completed":
+      return <p>Payment completed ✓</p>;
+    case "Failed":
+      return <p role="alert">Payment failed: {status.value.reason}</p>;
+    default:
+      return <p>Waiting for status…</p>;
+  }
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { usePaymentStatus } from "@use-truapi/vue";
+
+const props = defineProps<{ paymentId: string | undefined }>();
+const { data: status, error } = usePaymentStatus(() => props.paymentId);
+</script>
+
+<template>
+  <template v-if="paymentId">
+    <p v-if="error" role="alert">{{ error.message }}</p>
+    <p v-else-if="status?.tag === 'Processing'">Payment processing…</p>
+    <p v-else-if="status?.tag === 'Completed'">Payment completed ✓</p>
+    <p v-else-if="status?.tag === 'Failed'" role="alert">
+      Payment failed: {{ status.value.reason }}
+    </p>
+    <p v-else>Waiting for status…</p>
+  </template>
+</template>
+```
+
+Pass the id as a getter (`() => props.paymentId`): the subscription attaches
+when the id appears and re-attaches when it changes.
+
+</Tab>
+</Tabs>
+
+Statuses are pushed, not polled. There is nothing to refetch.
+
+## See also
+
+- [`useRequestPayment`](/docs/payments/use-request-payment) yields the payment id this hook consumes.
+- [`usePaymentBalance`](/docs/payments/use-payment-balance) is the balance a completed payment settles against.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/usePaymentStatus.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/usePaymentStatus.md</include>
