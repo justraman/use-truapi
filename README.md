@@ -2,7 +2,7 @@
 
 **React hooks and Vue composables for building TruAPI products.**
 
-One install, one provider, ~40 hooks. `use-truapi` wraps the entire
+One install, one provider, 51 hooks. `use-truapi` wraps the entire
 [TruAPI](https://github.com/paritytech/truapi) /
 [@parity/product-sdk](https://github.com/paritytech/product-sdk) surface —
 chain queries, wallet accounts, transactions, contracts, chat, statement
@@ -27,7 +27,6 @@ const theme = useTheme();
 | `@use-truapi/vue` | npm | Vue 3 composables |
 | `@use-truapi/core` | npm | Framework-agnostic runtime both bind to |
 
-Where this is heading: see the [roadmap](./ROADMAP.md).
 
 ## Why
 

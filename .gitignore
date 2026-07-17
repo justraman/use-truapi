@@ -12,3 +12,4 @@ test-results/
 
 # rust contract build artifacts
 contracts/target/
+planning/
