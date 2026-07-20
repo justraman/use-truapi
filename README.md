@@ -1,6 +1,6 @@
 # use-truapi
 
-**React hooks and Vue composables for building TruAPI products.**
+**React hooks and Vue composables for building Polkadot apps.**
 
 One install, one provider, 51 hooks. `use-truapi` wraps the entire
 [TruAPI](https://github.com/paritytech/truapi) /
