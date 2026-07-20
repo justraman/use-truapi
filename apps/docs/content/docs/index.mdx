@@ -4,24 +4,16 @@ description: React hooks and Vue composables for TruAPI products
 icon: BookOpen
 ---
 
-**use-truapi** is one install for building TruAPI products: chain queries,
-accounts, transactions, smart contracts, chat, statements, payments and cloud
-storage, exposed as [React hooks](https://www.npmjs.com/package/@use-truapi/react)
-and [Vue composables](https://www.npmjs.com/package/@use-truapi/vue) over a
-shared core.
-
-Everything is built on
-[`@parity/product-sdk`](https://github.com/paritytech/product-sdk) — every
-hook wraps the official `@parity/product-sdk-*` packages, so you get the
-same capabilities and wire behavior as the SDK itself, packaged for React
-and Vue with caching, live subscriptions and one consistent async idiom on
-top. You never install or import the SDK packages directly.
+**use-truapi** packages the entire
+[`@parity/product-sdk`](https://github.com/paritytech/product-sdk) surface —
+chain queries, accounts, transactions, contracts, chat, statements, payments,
+cloud storage — as [React hooks](https://www.npmjs.com/package/@use-truapi/react)
+and [Vue composables](https://www.npmjs.com/package/@use-truapi/vue). One
+install; the SDK packages stay behind the hooks.
 
 <Callout title="Not using React or Vue?">
   Use [`@parity/product-sdk`](https://paritytech.github.io/product-sdk/)
-  directly — it's the framework-agnostic TypeScript SDK this library is built
-  on, and it works in any JavaScript app (vanilla, Svelte, Node, …).
-  use-truapi only adds the React/Vue binding layer.
+  directly — use-truapi is only the React/Vue binding layer on top of it.
 </Callout>
 
 ```ts tab="React"
@@ -43,18 +35,14 @@ const { submit, phase } = useTx();
 
 ## What you get
 
-- One import site. `@use-truapi/react` (or `/vue`) re-exports everything you
-  need from the core: config, formatting utilities, error classes and types.
-- Caching and request deduplication through TanStack Query. Reads return
-  query results, actions return mutation state with a named method
-  (`connect`, `upload`, `submit`), and every hook accepts TanStack options.
-  This is the only place the docs mention it; it just works underneath.
-- Live data. Balances, block numbers, chat messages, statements and payment
-  state stream into the cache through shared subscriptions that detach when
-  the last consumer unmounts.
-- Host awareness. Apps run embedded in a Polkadot host or standalone in a
-  browser tab. Chain access, theming and storage adapt automatically.
-- Types end to end. Register your config once and every hook knows your
+- Reads are TanStack Query results, actions are mutations with a named
+  method (`connect`, `submit`, `upload`); every hook accepts TanStack
+  options.
+- Live data — balances, blocks, chat, statements and payments stream through
+  shared subscriptions that detach with the last consumer.
+- Host or standalone — embedded in a Polkadot host or in a plain browser
+  tab; chain access, theming and storage adapt automatically.
+- Types end to end — register your config once and every hook knows your
   chain keys and PAPI descriptors.
 
 ## Packages
@@ -64,7 +52,6 @@ const { submit, phase } = useTx();
 | `@use-truapi/react` | React hooks (React ≥18) |
 | `@use-truapi/vue` | Vue composables (Vue ≥3.4) |
 | `@use-truapi/core` | Framework-agnostic runtime the adapters share |
-| [`@parity/product-sdk`](https://paritytech.github.io/product-sdk/) | The underlying SDK — use it directly outside React/Vue |
 
 <Cards>
   <Card href="/docs/getting-started" title="Getting started">
