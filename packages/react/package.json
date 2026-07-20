@@ -5,7 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/use-truapi/use-truapi.git",
+    "url": "https://github.com/justraman/use-truapi.git",
     "directory": "packages/react"
   },
   "keywords": ["react", "hooks", "polkadot", "truapi", "product-sdk", "web3"],
