@@ -6,6 +6,9 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       // JSX supported
       title: appName,
+      // `/` only redirects (see app/page.tsx) — send the logo straight to
+      // the docs instead of bouncing through it.
+      url: '/docs',
     },
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };
