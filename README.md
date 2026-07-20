@@ -53,6 +53,21 @@ them (`npx papi add`) or use the prebuilt ones:
 npm i @parity/product-sdk-descriptors
 ```
 
+## AI-assisted development
+
+Building with Claude Code, Cursor or another coding agent? Install the
+bundled agent skill — a token-efficient distillation of the docs (setup, all
+hooks, host-vs-standalone rules) that the agent loads on demand:
+
+```bash
+npx skills add justraman/use-truapi
+```
+
+The skill lives in [`skills/use-truapi`](skills/use-truapi); see the
+[AI docs page](https://justraman.github.io/use-truapi/docs/ai) for details.
+The docs site also serves [`/llms.txt`](https://justraman.github.io/use-truapi/llms.txt)
+and [`/llms-full.txt`](https://justraman.github.io/use-truapi/llms-full.txt).
+
 ## Host vs standalone behavior
 
 | Capability | Inside a Polkadot host | Standalone (plain browser) |

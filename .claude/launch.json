@@ -30,9 +30,11 @@
         "run",
         "--cwd",
         "apps/docs",
+        "next",
         "dev"
       ],
-      "port": 3100
+      "port": 3100,
+      "autoPort": true
     }
   ]
 }

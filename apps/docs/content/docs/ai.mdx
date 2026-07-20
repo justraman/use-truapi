@@ -1,0 +1,27 @@
+---
+title: AI-assisted development
+description: Install the use-truapi agent skill and point coding agents at the docs
+icon: Bot
+---
+
+The repo ships an **agent skill** — a compact distillation of these docs
+(setup, all hooks, host-vs-standalone rules, error types) that coding agents
+like Claude Code, Cursor and Codex load on demand instead of scraping the
+full documentation:
+
+```bash
+npx skills add justraman/use-truapi
+```
+
+Once installed, the agent pulls in the correct provider setup, hook
+signatures and gotchas whenever it writes code touching `@use-truapi/react`
+or `@use-truapi/vue`.
+
+## llms.txt
+
+The docs site also serves machine-readable indexes:
+
+- [`/llms.txt`](https://justraman.github.io/use-truapi/llms.txt) — one-line
+  summary of every page.
+- [`/llms-full.txt`](https://justraman.github.io/use-truapi/llms-full.txt) —
+  the entire documentation as a single text file.
