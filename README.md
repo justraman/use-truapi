@@ -2,6 +2,10 @@
 
 **React hooks and Vue composables for building Polkadot apps.**
 
+> **Status:** this is an experiment, not an official library. The effort will
+> move into [@parity/product-sdk](https://github.com/paritytech/product-sdk),
+> which is the right place for it to live long term.
+
 One install, one provider, 51 hooks. `use-truapi` wraps the entire
 [TruAPI](https://github.com/paritytech/truapi) /
 [@parity/product-sdk](https://github.com/paritytech/product-sdk) surface —
