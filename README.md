@@ -13,8 +13,9 @@ chain queries, wallet accounts, transactions, contracts, chat, statement
 store, payments, notifications and cloud storage — so your frontend never
 imports (or even installs) the underlying SDK packages. Every hook is built
 on [TanStack Query](https://tanstack.com/query), so you get caching,
-`staleTime`/`gcTime` strategies, refetching, invalidation and devtools for
-free.
+`staleTime`/`gcTime` strategies, refetching, invalidation and devtools.
+
+**Documentation:** [justraman.github.io/use-truapi](https://justraman.github.io/use-truapi/)
 
 ```tsx
 const { submit, phase } = useTx();
