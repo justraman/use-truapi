@@ -1,0 +1,79 @@
+---
+title: useRingVrfSign
+description: Plain signature under a registered ring-VRF member key, without a membership proof
+---
+
+`useRingVrfSign` signs bytes directly with a registered ring-VRF key:
+`sign(keyHandle, message)` resolves the 64-byte signature. Unlike
+[`useCreateAccountProof`](/docs/accounts/use-create-account-proof) it proves
+nothing about ring membership; it is the raw signature under the member key,
+for protocols that carry their own proof or only need to show continuity of
+the same key across messages.
+
+The handle comes from [`useRingVrfKeys`](/docs/accounts/use-ring-vrf-keys).
+Signing with your own product's key does not prompt on hosts that treat
+same-product requests as pre-approved; another product's key prompts or is
+refused. Host-only: standalone `sign` rejects with `HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useRingVrfKeys, useRingVrfSign } from "@use-truapi/react";
+
+function SignWithKey() {
+  const { data: keys } = useRingVrfKeys();
+  const { sign, data, isPending } = useRingVrfSign();
+  const key = keys?.[0];
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={!key || isPending}
+        onClick={() => key && sign(key.handle, new TextEncoder().encode("hello"))}
+      >
+        Sign
+      </button>
+      {data && <code>{data.length} byte signature</code>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useRingVrfKeys, useRingVrfSign } from "@use-truapi/vue";
+
+const keys = useRingVrfKeys();
+const { sign, data, isPending } = useRingVrfSign();
+
+function onSign() {
+  const key = keys.data.value?.[0];
+  if (key) void sign(key.handle, new TextEncoder().encode("hello"));
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onSign">Sign</button>
+  <code v-if="data">{{ data.length }} byte signature</code>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useRingVrfSign.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useRingVrfSign.md</include>

@@ -1,5 +1,5 @@
 {
   "title": "Cloud storage",
-  "description": "Bulletin-backed uploads and CID retrieval",
-  "pages": ["use-upload", "use-cid", "use-storage-authorization"]
+  "description": "Bulletin-backed uploads, CID retrieval and raw preimages",
+  "pages": ["use-upload", "use-cid", "use-storage-authorization", "use-submit-preimage", "use-preimage"]
 }

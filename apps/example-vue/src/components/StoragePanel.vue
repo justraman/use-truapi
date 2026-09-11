@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { useCid, useStorageAuthorization, useUpload } from "@use-truapi/vue";
+import {
+  useCid,
+  useIsHost,
+  usePreimage,
+  useStorageAuthorization,
+  useSubmitPreimage,
+  useUpload,
+} from "@use-truapi/vue";
 import { computed, ref } from "vue";
 import HookRow from "./HookRow.vue";
 import UiCard from "./UiCard.vue";
@@ -9,10 +16,25 @@ const upload = useUpload();
 const lastCid = ref<string | undefined>(undefined);
 const fetched = useCid(() => lastCid.value);
 const draft = ref("");
+// Raw preimage path (host-only): submit bytes, read them back by key.
+const isHost = useIsHost();
+const submitPreimage = useSubmitPreimage();
+const preimage = usePreimage(() => submitPreimage.data.value, { enabled: () => isHost.value });
+const preimageText = computed(() =>
+  preimage.data.value ? new TextDecoder().decode(preimage.data.value) : "looking up…",
+);
 
 const firstError = computed(
-  () => authorization.error.value ?? upload.error.value ?? fetched.error.value,
+  () =>
+    authorization.error.value ??
+    upload.error.value ??
+    fetched.error.value ??
+    submitPreimage.error.value,
 );
+
+function onSubmitPreimage() {
+  void submitPreimage.submit(new TextEncoder().encode(draft.value)).catch(() => {});
+}
 
 const fetchedText = computed(() =>
   fetched.data.value ? new TextDecoder().decode(fetched.data.value) : undefined,
@@ -58,6 +80,23 @@ function onUpload() {
         <span data-testid="cid-content">{{ fetchedText ?? "fetching…" }}</span>
       </span>
       <span v-else class="muted">upload something to read it back by CID</span>
+    </HookRow>
+    <HookRow :hook="['useSubmitPreimage', 'usePreimage']">
+      <template v-if="isHost">
+        <button
+          type="button"
+          data-testid="preimage-submit"
+          :disabled="submitPreimage.isPending.value || draft === ''"
+          @click="onSubmitPreimage"
+        >
+          {{ submitPreimage.isPending.value ? "Submitting…" : "Submit as preimage" }}
+        </button>
+        <span v-if="submitPreimage.data.value" class="muted">
+          key <code data-testid="preimage-key">{{ submitPreimage.data.value.slice(0, 18) }}…</code> reads back:
+          <span data-testid="preimage-content">{{ preimageText }}</span>
+        </span>
+      </template>
+      <span v-else class="muted" data-testid="preimage-unavailable">host only</span>
     </HookRow>
     <p v-if="firstError" class="error">{{ firstError.message }}</p>
   </UiCard>

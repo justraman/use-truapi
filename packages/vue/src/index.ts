@@ -26,6 +26,7 @@ export * from "./composables/chat";
 export * from "./composables/statements";
 export * from "./composables/payments";
 export * from "./composables/storage";
+export * from "./composables/preimage";
 export * from "./composables/format";
 
 // Everything an app needs from core, re-exported so `@use-truapi/vue` is
@@ -44,14 +45,19 @@ export {
   h160ToSs58,
   toGenericSs58,
   addressesEqual,
+  findRingVrfKeyHandle,
+  isSdkError,
   HostError,
   HostUnavailableError,
+  HostCallFailedError,
   ChainNotSupportedError,
   TxError,
   TxDispatchError,
   TxSigningRejectedError,
+  TxValidityError,
   ContractError,
   ContractRevertedError,
+  StatementStoreError,
 } from "@use-truapi/core";
 export type {
   AbiEntry,
@@ -60,10 +66,23 @@ export type {
   ChainConfig,
   Contract,
   ContractDef,
+  HostChainDiscovery,
+  HostChainIdentifier,
+  HostConnectionStatus,
+  HostInfo,
+  HostPlatform,
+  LocaleState,
+  ProductContext,
+  RegisteredRingVrfKey,
+  RingLocation,
+  RingVrfKeyHandle,
   SignerAccount,
   SignerState,
+  ThemeState,
   TruapiConfig,
   TruapiRuntime,
   TxResult,
   TxStatus,
+  VrfSignature,
+  VrfTranscriptItem,
 } from "@use-truapi/core";

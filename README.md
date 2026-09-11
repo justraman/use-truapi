@@ -6,12 +6,14 @@
 > move into [@parity/product-sdk](https://github.com/paritytech/product-sdk),
 > which is the right place for it to live long term.
 
-One install, one provider, 51 hooks. `use-truapi` wraps the entire
-[TruAPI](https://github.com/paritytech/truapi) /
+One install, one provider, 64 hooks. `use-truapi` wraps the entire
+[TruAPI](https://github.com/paritytech/host-rust-core) /
 [@parity/product-sdk](https://github.com/paritytech/product-sdk) surface —
 chain queries, wallet accounts, transactions, contracts, chat, statement
-store, payments, notifications and cloud storage — so your frontend never
-imports (or even installs) the underlying SDK packages. Every hook is built
+store, payments, notifications, cloud storage, preimages, personhood proofs
+and host identity — so your frontend never imports (or even installs) the
+underlying SDK packages. Tracks TruAPI protocol 0.14 (`@parity/truapi`
+0.13.1) and the product-sdk v0.27 wave. Every hook is built
 on [TanStack Query](https://tanstack.com/query), so you get caching,
 `staleTime`/`gcTime` strategies, refetching, invalidation and devtools.
 
@@ -72,12 +74,14 @@ and [`/llms-full.txt`](https://justraman.github.io/use-truapi/llms-full.txt).
 
 | Capability | Inside a Polkadot host | Standalone (plain browser) |
 | --- | --- | --- |
-| Chain connection | host provider (host owns the socket) | `wsUrls` from your config |
-| Accounts | host wallet / product account | Alice…Ferdie dev accounts |
+| Chain connection | host provider; genesis discovered by `hostChain` role (RFC-0026) | `wsUrls` from your config |
+| Accounts | product account derived from the host's product context | Alice…Ferdie dev accounts |
 | Signing permission | `ChainSubmit` requested per tx | no-op |
-| Theme | host theme subscription | `prefers-color-scheme` |
+| Theme / locale | host theme and language subscriptions | `prefers-color-scheme` / `navigator.language` |
+| Host identity, product context, chain discovery, connection status | native | `null` / `"disconnected"` |
 | KV storage | host localStorage | browser localStorage |
-| Chat / payments / notifications / cloud reads | native | unavailable — hooks error or stay inert (documented per hook) |
+| Chat / payments / notifications / cloud reads / preimages | native | unavailable — hooks error or stay inert (documented per hook) |
+| VRF and ring-VRF personhood (RFC-0023/0024) | native | `HostUnavailableError` |
 | Statements | sponsored (RFC-0010) publish/subscribe | inert (`publish` → `false`, lists stay empty) |
 
 The rule of thumb: **read-style hooks degrade silently, action-style hooks
@@ -120,7 +124,7 @@ bunx nx run-many -t test         # vitest everywhere
 bunx nx run-many -t typecheck    # tsc --noEmit
 bunx nx run-many -t lint         # biome
 
-bun run --cwd apps/example-react dev   # standalone example on :5173
+bun run --cwd apps/example-react dev   # standalone example on :3000
 bun run --cwd apps/example-vue dev     # standalone example on :5174
 
 cd e2e && bunx playwright test   # runs example-react inside a real Spektr test host
@@ -131,6 +135,27 @@ The e2e suite uses
 a real host implementation with dev accounts, permission/signing logs and
 theme control — so hooks are exercised against the actual wire protocol, not
 mocks.
+
+### Testing hosted paths locally with the TruAPI host CLI
+
+[`truapi-host`](https://github.com/paritytech/host-rust-core/tree/main/rust/crates/truapi-host-cli)
+runs a real signing host on your machine (real product account, statement
+store, entropy, preimages, personhood) with no phone or desktop build:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/paritytech/host-rust-core/main/scripts/truapi-host-installer.sh | bash
+
+# one command: start the host, then the example dev server against it
+truapi-host dev --app-port 3000 -- bun run --cwd apps/example-react dev
+```
+
+The examples' Vite config probes `http://127.0.0.1:9955/bootstrap.js` at
+dev-server start and, when a host is serving it, injects the bridge script so
+the app is detected as hosted (`useHostMode()` → `"host"`,
+`useHostInfo()` → `truapi-host …`). A signing host started separately works
+the same way: `truapi-host signing-host --serve --frame-listen 127.0.0.1:9955
+--product-id localhost:3000 --auto-accept`. The first run registers a test
+identity on-chain and can take a few minutes.
 
 ## Releasing
 

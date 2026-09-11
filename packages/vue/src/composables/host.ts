@@ -1,5 +1,15 @@
 import { useQueryClient } from "@tanstack/vue-query";
-import { type HostMode, type ThemeState, queryKeys } from "@use-truapi/core";
+import {
+  type HostChainDiscovery,
+  type HostChainIdentifier,
+  type HostConnectionStatus,
+  type HostInfo,
+  type HostMode,
+  type LocaleState,
+  type ProductContext,
+  type ThemeState,
+  queryKeys,
+} from "@use-truapi/core";
 import { type ComputedRef, type ShallowRef, computed } from "vue";
 import { useRuntime } from "../context";
 import {
@@ -31,6 +41,58 @@ export function useIsHost(): ComputedRef<boolean> {
 /** Live theme: host theme when embedded, `prefers-color-scheme` standalone. */
 export function useTheme(): ShallowRef<ThemeState> {
   return useStore(useRuntime().theme);
+}
+
+/** Live host language (BCP 47 tag) when embedded, `navigator.language` standalone. */
+export function useLocale(): ShallowRef<LocaleState> {
+  return useStore(useRuntime().locale);
+}
+
+/** Host-channel transport status: `"connecting" | "connected" | "disconnected"` (always disconnected standalone). */
+export function useHostConnectionStatus(): ShallowRef<HostConnectionStatus> {
+  return useStore(useRuntime().host.connectionStatus);
+}
+
+/** Host identity and version (`System.host_info`); `null` standalone or on hosts that predate it. */
+export function useHostInfo(options?: {
+  query?: QueryOptions<HostInfo | null>;
+}): QueryResult<HostInfo | null> {
+  const runtime = useRuntime();
+  return useTruapiQuery(
+    () => queryKeys.hostInfo(),
+    () => runtime.host.getInfo(),
+    options,
+  );
+}
+
+/** The canonical product id the host bound this app to; `null` standalone or on legacy hosts. */
+export function useProductContext(options?: {
+  query?: QueryOptions<ProductContext | null>;
+}): QueryResult<ProductContext | null> {
+  const runtime = useRuntime();
+  return useTruapiQuery(
+    () => queryKeys.productContext(),
+    () => runtime.host.getProductContext(),
+    options,
+  );
+}
+
+/**
+ * RFC-0026 chain discovery: the host's network name plus the genesis hash of
+ * each requested role (`"Relay" | "AssetHub" | "People" | "Bulletin"`) it
+ * serves. `null` standalone, on legacy hosts, or when none of the roles is served.
+ */
+export function useHostChainInfo(
+  identifiers: MaybeGetter<readonly HostChainIdentifier[]>,
+  options?: { query?: QueryOptions<HostChainDiscovery | null> },
+): QueryResult<HostChainDiscovery | null> {
+  const runtime = useRuntime();
+  const get = toGetter(identifiers);
+  return useTruapiQuery(
+    () => queryKeys.hostChainInfo(get()),
+    () => runtime.host.getChainInfo(get()),
+    options,
+  );
 }
 
 /** RFC-0002 remote permissions (ChainSubmit, StatementSubmit, Remote domains, …): `request(permission)`. */

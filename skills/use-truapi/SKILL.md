@@ -44,13 +44,14 @@ export const config = defineConfig({
   chains: {
     assetHub: {                       // key becomes the typed ChainKey
       descriptor: paseo_asset_hub,
-      genesisHash: "0xbf04…f19f",
+      hostChain: "AssetHub",          // RFC-0026: host resolves the genesis by role
+      genesisHash: paseo_asset_hub.genesis as `0x${string}`, // fallback for legacy hosts
       wsUrls: ["wss://…"],            // used only standalone (no host)
     },
   },
-  dappName: "my-app",
+  dappName: "my-app",                      // product account = host product context, else `${dappName}.dot`
   statements: { appName: "my-app" },       // only if using statement hooks
-  cloudStorage: { environment: "paseo" },  // only if using storage hooks
+  cloudStorage: { environment: "paseo" },  // "paseo" | "previewnet" | "devnet"; only if using storage hooks
 });
 
 // Register once → every hook gets typed chain keys + typed PAPI apis
@@ -118,6 +119,9 @@ observable · `useBlockNumber` · `useBalance` live native balance (planck) ·
 `useAccounts` wallet state + connect/disconnect/select · `useSelectedAccount` ·
 `useConnect` · `useDisconnect` · `useSigner` PolkadotSigner · `useLogin`
 RFC-0009 host login · `useUserId` DotNS username · `useSignRaw` sign bytes ·
+`useSignVrf` sr25519 VRF over a transcript (RFC-0023) · `useRingVrfKeys` ·
+`useRegisterRingVrfKey` · `useAccountAlias` · `useCreateAccountProof` ·
+`useRingVrfSign` personhood ring-VRF (RFC-0024) ·
 `useTx` sign/submit/watch · `useBatchTx` atomic `Utility.batch_all`.
 
 **Contracts (PolkaVM)** → [references/contracts.md](references/contracts.md)
@@ -126,7 +130,10 @@ address+ABI · `useContractQuery` dry-run read · `useContractTx` write with
 pre-flight · `useEnsureAccountMapped` required once before contract txs.
 
 **Host** → [references/host.md](references/host.md)
-`useHostMode` "unknown"|"host"|"standalone" · `useIsHost` · `useTheme` ·
+`useHostMode` "unknown"|"host"|"standalone" · `useIsHost` ·
+`useHostConnectionStatus` transport state · `useHostInfo` host name/version/
+platform · `useProductContext` canonical product id · `useHostChainInfo`
+chain roles → genesis (RFC-0026) · `useTheme` · `useLocale` host language ·
 `usePermission` RFC-0002 · `useDevicePermission` camera/notifications ·
 `useResourceAllocation` RFC-0010 allowances · `useHostNavigate` .dot/https
 deep links · `useFeatureSupported` · `useDeriveEntropy` stable 32-byte
@@ -144,8 +151,9 @@ presence/cursors.
 `usePaymentBalance` RFC-0006 purse · `useRequestPayment` host-confirmed pay ·
 `useTopUp` fund purse · `usePaymentStatus` track to terminal state ·
 `useUpload` bytes → CID (Bulletin) · `useCid` fetch CID bytes/JSON ·
-`useStorageAuthorization` quota · `useFormattedBalance` planck → display
-string.
+`useStorageAuthorization` quota · `useSubmitPreimage` raw bytes → key ·
+`usePreimage` live key → bytes (host-only) · `useFormattedBalance` planck →
+display string.
 
 ## Errors
 
@@ -153,10 +161,20 @@ All importable from the framework package. `TxResult` dispatch failures are
 **data** (`result.ok === false`, `result.dispatchError`), not throws.
 
 - `HostError` base → `HostUnavailableError` (not in a host — the common local-dev
-  case), `ChainNotSupportedError` (host lacks the chain / genesis drift).
-- `TxError` base → `TxSigningRejectedError` (user declined),
-  `TxDispatchError` (included on-chain but dispatch failed).
+  case), `ChainNotSupportedError` (host lacks the chain / genesis drift),
+  `HostCallFailedError` (host answered on the error channel; `.payload` is the wire error).
+- `TxError` base → `TxSigningRejectedError` (user declined), `TxValidityError`
+  (rejected before inclusion, e.g. can't pay fees), `TxDispatchError` (included
+  on-chain but dispatch failed).
 - `ContractError` base → `ContractRevertedError` (REVERT flag on ok dispatch).
+- `StatementStoreError` base → thrown by `publish`/channel `write` when the host
+  rejects a statement (too large, not connected, network refused); standalone
+  they resolve `false` instead.
+- `isSdkError(e)` recognises any error raised by the underlying SDK packages.
+
+Hosted local dev: `truapi-host dev --app-port 3000 -- <dev command>` runs a real
+signing host; the examples' Vite plugin injects its bootstrap script when it is
+reachable, so `useHostMode()` reports `"host"` in a plain browser tab.
 
 ## Utilities & escape hatch
 

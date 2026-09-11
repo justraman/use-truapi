@@ -1,0 +1,76 @@
+---
+title: useProductContext
+description: The canonical product id the host derives your accounts and permissions from
+---
+
+`useProductContext` returns the product context the host bound this runtime
+to (`System.get_product_context`): `data.productId` is the full canonical
+dotNS identifier including its network TLD, such as `my-app.dot`,
+`my-app.paseo`, or `localhost:3000` under a local development host. This is
+the exact string the host uses for authorization and product-account
+derivation, so use it wherever an API needs a `dotNsIdentifier` or a
+`ProductProofContext` instead of hard-coding a suffix or inspecting the URL.
+
+The runtime already uses it: when `productAccount.dotNsIdentifier` is not set
+in the config, `connect()` derives the product account from the host's
+product context and only falls back to `<dappName>.dot` on hosts that predate
+the method. `data` is `null` standalone and on those legacy hosts.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useProductContext, useRingVrfKeys } from "@use-truapi/react";
+
+function ProofContext() {
+  const { data: context } = useProductContext();
+  const keys = useRingVrfKeys(context?.productId);
+
+  const proofContext = context
+    ? { productId: context.productId, suffix: { tag: "Index" as const, value: 0 } }
+    : undefined;
+  // pass proofContext to useAccountAlias / useCreateAccountProof
+  return <span>{context?.productId ?? "standalone"} · {keys.data?.length ?? 0} keys</span>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useProductContext } from "@use-truapi/vue";
+import { computed } from "vue";
+
+const { data: context } = useProductContext();
+const proofContext = computed(() =>
+  context.value
+    ? { productId: context.value.productId, suffix: { tag: "Index" as const, value: 0 } }
+    : undefined,
+);
+</script>
+
+<template>
+  <span>{{ context?.productId ?? "standalone" }}</span>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useAccountAlias`](/docs/accounts/use-account-alias) and [`useCreateAccountProof`](/docs/accounts/use-create-account-proof) take a `ProductProofContext` built from this id.
+- [Provider & runtime](/docs/provider) explains the `productAccount` config the runtime derives from it.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useProductContext.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useProductContext.md</include>

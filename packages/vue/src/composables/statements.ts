@@ -1,4 +1,9 @@
-import { type PublishOptions, type ReceivedStatement, queryKeys } from "@use-truapi/core";
+import {
+  type PublishOptions,
+  type ReceivedStatement,
+  queryKeys,
+  unwrapResult,
+} from "@use-truapi/core";
 import { type Ref, onScopeDispose, ref } from "vue";
 import { useRuntime } from "../context";
 import {
@@ -47,8 +52,9 @@ export interface PublishStatementVariables<T> {
 
 /**
  * Publish JSON payloads (≤512 bytes) to the app topic: `publish(data)`.
- * Resolves `false` when the store rejects the statement or the app runs
- * standalone.
+ * Resolves `false` standalone (nothing to publish to) and `true` once the
+ * host accepted the statement; a host-side rejection rejects with the SDK's
+ * `StatementStoreError` so the reason lands in `error`.
  */
 export function usePublishStatement<T = unknown>(options?: {
   mutation?: MutationOptions<boolean, PublishStatementVariables<T>>;
@@ -74,6 +80,7 @@ export function usePublishStatement<T = unknown>(options?: {
 export interface StatementChannel<T> {
   /** Latest value per channel name (last-write-wins). */
   values: Ref<ReadonlyMap<string, T>>;
+  /** Resolves `false` while the store isn't ready (standalone); rejects with the SDK error on a host-side failure. */
   write: (channelName: string, value: T) => Promise<boolean>;
   ready: Ref<boolean>;
 }
@@ -118,7 +125,8 @@ export function useStatementChannel<T extends { timestamp?: number }>(options?: 
     ready,
     write: async (channelName: string, value: T) => {
       if (!store) return false;
-      return store.write(channelName, value);
+      unwrapResult(await store.write(channelName, value));
+      return true;
     },
   };
 }

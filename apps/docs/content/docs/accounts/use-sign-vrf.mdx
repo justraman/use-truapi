@@ -1,0 +1,96 @@
+---
+title: useSignVrf
+description: sr25519 VRF signature from a product account over a Merlin transcript (RFC-0023)
+---
+
+`useSignVrf` produces an sr25519 VRF signature with a product account. Call
+`sign(transcriptLabel, items)`: the host builds a Merlin transcript from the
+label and replays each `{ label, value }` item as `append_message`, signs it
+with the account's key and resolves a `VrfSignature` with the `preOutput` and
+its DLEQ `proof`. The output is deterministic for the same transcript and
+key, which is the property lotteries, leader election and commit-reveal
+schemes rely on.
+
+Four things stay on the caller: domain separation (a label borrowed from
+another protocol makes the output replayable there), freshness (per-round
+values belong in `items`), transcript size (hosts cap it at 32 items / 8 KiB)
+and authorization (an `AutoSigning` allowance makes these calls silent; it
+covers other signing by the same account too). Without the allowance the host
+prompts the user per call, so trigger it from a user gesture.
+
+The account defaults to the runtime's product account (index 0 of the
+configured or host-derived product id); pass a `ProductAccountLookup` to sign
+with another index. Host-only: standalone `sign` rejects with
+`HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useSignVrf } from "@use-truapi/react";
+
+const enc = (s: string) => new TextEncoder().encode(s);
+
+function DrawTicket({ round }: { round: number }) {
+  const { sign, data, isPending, error } = useSignVrf();
+
+  async function onDraw() {
+    const { preOutput } = await sign(enc("my-app/lottery/v1"), [
+      { label: enc("round"), value: enc(String(round)) },
+    ]);
+    console.log("ticket", preOutput);
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onDraw} disabled={isPending}>Draw</button>
+      {data && <code>{data.preOutput.length} byte pre-output</code>}
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useSignVrf } from "@use-truapi/vue";
+
+const props = defineProps<{ round: number }>();
+const enc = (s: string) => new TextEncoder().encode(s);
+const { sign, data, isPending, error } = useSignVrf();
+
+async function onDraw() {
+  await sign(enc("my-app/lottery/v1"), [{ label: enc("round"), value: enc(String(props.round)) }]);
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onDraw">Draw</button>
+  <code v-if="data">{{ data.preOutput.length }} byte pre-output</code>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useSignRaw`](/docs/accounts/use-sign-raw) is the plain signature over arbitrary bytes.
+- [`useResourceAllocation`](/docs/host/use-resource-allocation) requests the `AutoSigning` allowance that makes repeated VRF calls prompt-free.
+- [`useRingVrfSign`](/docs/accounts/use-ring-vrf-sign) signs with a registered *ring-VRF* key instead.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useSignVrf.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useSignVrf.md</include>

@@ -1,0 +1,82 @@
+---
+title: useLocale
+description: The language the host presents its UI in, live, with navigator.language standalone
+---
+
+`useLocale` returns the current `LocaleState` and keeps it live. Embedded in a
+host it follows the language the user picked *inside the host*
+(`Locale.subscribe`), which is the right answer whenever that differs from
+the operating system's preference. Standalone it tracks `navigator.language`
+and the `languagechange` event instead; `source` tells you which of the two
+you are getting.
+
+`languageTag` is a BCP 47 tag such as `en`, `pt-BR` or `zh-Hans`. The set is
+open: a host can add languages without a protocol change, so a product that
+ships no catalog for the tag it receives picks its own fallback. On hosts that
+predate the locale domain the subscription ends immediately and the hook
+keeps reporting the navigator language.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useLocale } from "@use-truapi/react";
+import { useEffect } from "react";
+
+const SUPPORTED = new Set(["en", "pt-BR", "zh-Hans"]);
+
+function LocaleSync() {
+  const { languageTag, source } = useLocale();
+
+  useEffect(() => {
+    i18n.activate(SUPPORTED.has(languageTag) ? languageTag : "en");
+  }, [languageTag]);
+
+  return <small>{source === "host" ? "host language" : "browser language"}</small>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useLocale } from "@use-truapi/vue";
+import { watchEffect } from "vue";
+
+const SUPPORTED = new Set(["en", "pt-BR", "zh-Hans"]);
+const locale = useLocale();
+
+watchEffect(() => {
+  const tag = locale.value.languageTag;
+  i18n.activate(SUPPORTED.has(tag) ? tag : "en");
+});
+</script>
+
+<template>
+  <small>{{ locale.source === "host" ? "host language" : "browser language" }}</small>
+</template>
+```
+
+The composable returns a `ShallowRef`: use `locale.value.languageTag` in
+script, plain `locale.languageTag` in templates.
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useTheme`](/docs/host/use-theme) is the same pattern for the host's light/dark setting.
+- [`useHostMode`](/docs/host/use-host-mode) is the detection the locale source follows.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useLocale.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useLocale.md</include>

@@ -11,6 +11,7 @@ import type { AccountsController } from "./accounts";
 import type { ChainController } from "./chain";
 import type { AnyChains } from "./config";
 import { type TruapiConfig, resolveChain } from "./config";
+import { unwrapResult } from "./host";
 
 export type { AbiEntry, CdmJson, Contract, ContractDef };
 
@@ -58,9 +59,14 @@ export function createContractsController<TChains extends AnyChains>(
       manager = (async () => {
         const client = await chains.getClient(options?.chain);
         const managerOptions = { signerManager: accounts.manager };
-        return options?.live
-          ? ContractManager.fromLiveClient(cdmJson, client, chain.descriptor, managerOptions)
-          : ContractManager.fromClient(cdmJson, client, chain.descriptor, managerOptions);
+        if (options?.live) {
+          // Live registry resolution fails on the Result err channel
+          // (ContractLiveAddressResolutionError / ContractNotFoundError).
+          return unwrapResult(
+            await ContractManager.fromLiveClient(cdmJson, client, chain.descriptor, managerOptions),
+          );
+        }
+        return ContractManager.fromClient(cdmJson, client, chain.descriptor, managerOptions);
       })();
       manager.catch(() => byManifest?.delete(cdmJson));
       byManifest.set(cdmJson, manager);
@@ -87,7 +93,10 @@ export function createContractsController<TChains extends AnyChains>(
       if (!account || !signer) {
         throw new Error("use-truapi: connect an account before mapping it for contracts");
       }
-      await ensureContractAccountMapped(manager.getRuntime(), account.address, signer);
+      // ok(null) means the account was already mapped; err carries the TxError.
+      unwrapResult(
+        await ensureContractAccountMapped(manager.getRuntime(), account.address, signer),
+      );
     },
   };
 }

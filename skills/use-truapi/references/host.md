@@ -11,10 +11,41 @@ Host container detection, theme, permissions (remote/device/resource), deep-link
 - `true` exactly when mode is `"host"`; `false` both while detection is pending and when genuinely standalone.
 - Ideal for gating host-only UI (stays hidden until host confirmed). Need to distinguish "detecting" from "standalone"? Use `useHostMode`.
 
+## useHostConnectionStatus
+`useHostConnectionStatus(): "connecting" | "connected" | "disconnected"`
+- The host *transport* channel (not the wallet): `"connecting"` while waiting for the host, `"connected"` once up, `"disconnected"` standalone or after the channel closes. Never builds a host client outside a container.
+- Use for reconnect banners or to hold host calls until connected. Wallet connection is `useAccounts().status`.
+
+## useHostInfo
+`useHostInfo(options?: { query? }): UseQueryResult<HostInfo | null, Error>` — `HostInfo = { platform: "Web" | "Android" | "Ios" | "Desktop" | "Cli" | "Unknown"; name: string; version: string }`
+- `System.host_info`: which host build is running the app — adapt layout per platform, label telemetry/bug reports.
+- Best-effort: `data` is `null` standalone AND on hosts predating the method — always branch on it. Fetched once, cached.
+
+## useProductContext
+`useProductContext(options?: { query? }): UseQueryResult<ProductContext | null, Error>` — `{ productId: string }`
+- The canonical id the host derives accounts/permissions from, TLD included (`my-app.dot`, `my-app.paseo`, `localhost:3000` under `truapi-host dev`). Use it for every `dotNsIdentifier` / `ProductProofContext` instead of hard-coding a suffix.
+- The runtime already uses it: without `productAccount.dotNsIdentifier` in config, connect() derives the account from it, falling back to `${dappName}.dot` on legacy hosts. `null` standalone / legacy hosts.
+
+## useHostChainInfo
+`useHostChainInfo(identifiers: HostChainIdentifier[], options?: { query? }): UseQueryResult<HostChainDiscovery | null, Error>` — `HostChainIdentifier = "Relay" | "AssetHub" | "People" | "Bulletin"`; `HostChainDiscovery = { network: string; chains: Partial<Record<HostChainIdentifier, "0x…">> }`
+- RFC-0026: resolve chain roles to genesis hashes against the host's configured network — replaces hard-coded hashes that go stale after testnet resets. Roles the host doesn't serve are absent from `chains`.
+- `null` standalone, on legacy hosts, or when none of the roles is served — keep a fallback (descriptor `.genesis`). Cached per role set for the connection lifetime.
+- Usually implicit: set `hostChain: "AssetHub"` in the chain config and the runtime resolves the genesis before requesting the host provider (`genesisHash` becomes the fallback and may be omitted).
+
+```tsx
+const { data } = useHostChainInfo(["AssetHub", "People"]);
+const assetHub = data?.chains.AssetHub ?? (paseo_asset_hub.genesis as `0x${string}`);
+```
+
 ## useTheme
 `useTheme(): ThemeState` — `{ variant: "light" | "dark"; custom: string | null; source: "host" | "system" }`
 - Live: follows host theme when embedded (incl. custom host themes); tracks `prefers-color-scheme` standalone. `source` says which; `custom` is always `null` outside a host.
 - Before detection resolves it reports the system theme, then flips to the host theme — always renderable.
+
+## useLocale
+`useLocale(): LocaleState` — `{ languageTag: string; source: "host" | "navigator" }`
+- Live: the language the host presents its UI in (`Locale.subscribe`) when embedded; `navigator.language` (+ `languagechange`) standalone. `languageTag` is an open BCP 47 tag (`en`, `pt-BR`, `zh-Hans`) — pick your own fallback for tags you don't ship.
+- Hosts predating the locale domain end the subscription; the hook keeps the navigator value. Vue returns a `ShallowRef`.
 
 ## usePermission
 `usePermission(options?: { mutation? }) → { request(permission: RemotePermission): Promise<boolean>, ...mutation state }`

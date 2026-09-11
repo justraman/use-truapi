@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createRuntime, defineConfig, queryKeys } from "@use-truapi/core";
 import type { ChainDefinition } from "polkadot-api";
-import { createElement, type ReactNode } from "react";
+import { type ReactNode, createElement } from "react";
 import { describe, expect, it } from "vitest";
 import {
   TruapiProvider,
@@ -23,11 +23,7 @@ const config = defineConfig({
 
 function wrapperFor(runtime = createRuntime(config), queryClient?: QueryClient) {
   return ({ children }: { children: ReactNode }) =>
-    createElement(
-      TruapiProvider,
-      queryClient ? { runtime, queryClient } : { runtime },
-      children,
-    );
+    createElement(TruapiProvider, queryClient ? { runtime, queryClient } : { runtime }, children);
 }
 
 describe("TruapiProvider / useRuntime", () => {

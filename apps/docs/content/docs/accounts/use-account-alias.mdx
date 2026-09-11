@@ -1,0 +1,94 @@
+---
+title: useAccountAlias
+description: Contextual alias for a registered ring-VRF key, proving ring membership without naming the account
+---
+
+`useAccountAlias` derives a contextual alias: `derive(keyHandle, context,
+ring)` resolves a `ContextualAlias` (`{ context, alias }` bytes) that is
+stable for the same key and context but unlinkable across contexts. It lets a
+product recognise a returning person (same alias) without learning which
+account they are, and is the identifier personhood-gated features key their
+state on.
+
+`keyHandle` comes from [`useRingVrfKeys`](/docs/accounts/use-ring-vrf-keys);
+`context` is a `ProductProofContext`, `{ productId, suffix }`, built from the
+id [`useProductContext`](/docs/host/use-product-context) reports; `ring` is
+the `RingLocation` the key was registered for. Host-only: standalone `derive`
+rejects with `HostUnavailableError`, and a key whose account is not a member
+of the ring fails with the host's `NotMember` error.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useAccountAlias, useProductContext, useRingVrfKeys, type RingLocation } from "@use-truapi/react";
+
+function Alias({ ring }: { ring: RingLocation }) {
+  const { data: context } = useProductContext();
+  const { data: keys } = useRingVrfKeys();
+  const { derive, data: alias, isPending, error } = useAccountAlias();
+  const key = keys?.[0];
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={!key || !context || isPending}
+        onClick={() =>
+          key && context &&
+          derive(key.handle, { productId: context.productId, suffix: { tag: "Index", value: 0 } }, ring)
+        }
+      >
+        Derive alias
+      </button>
+      {alias && <code>{alias.alias.length} byte alias</code>}
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useAccountAlias, useProductContext, useRingVrfKeys, type RingLocation } from "@use-truapi/vue";
+
+const props = defineProps<{ ring: RingLocation }>();
+const context = useProductContext();
+const keys = useRingVrfKeys();
+const { derive, data: alias, isPending, error } = useAccountAlias();
+
+function onDerive() {
+  const key = keys.data.value?.[0];
+  const productId = context.data.value?.productId;
+  if (key && productId) void derive(key.handle, { productId, suffix: { tag: "Index", value: 0 } }, props.ring);
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onDerive">Derive alias</button>
+  <code v-if="alias">{{ alias.alias.length }} byte alias</code>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useCreateAccountProof`](/docs/accounts/use-create-account-proof) returns the same alias together with a verifiable proof over a message.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useAccountAlias.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useAccountAlias.md</include>

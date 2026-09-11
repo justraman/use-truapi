@@ -7,6 +7,7 @@ import {
   type TxResult,
   queryKeys,
   resolveChain,
+  unwrapResult,
 } from "@use-truapi/core";
 import { useCallback } from "react";
 import { type ChainKey, useRuntime } from "../context";
@@ -108,6 +109,14 @@ export function useContractQuery<T = unknown>(
           cause: result.value,
         });
       }
+      // pallet-revive answers a call to an address without code with an empty
+      // return, which decodes to undefined — most often the contract was wiped
+      // by a chain reset. Name that instead of TanStack's "data is undefined".
+      if (result.value === undefined) {
+        throw new Error(
+          `use-truapi: contract query "${method}" returned no data — is the contract deployed at this address on this chain?`,
+        );
+      }
       return result.value as T;
     },
     { ...options, enabled: contract !== undefined && (options?.enabled ?? true) },
@@ -131,11 +140,20 @@ export function useContractTx(
 } {
   const mutation = useTruapiMutation(async (args: OptionalVariables<readonly unknown[]>) => {
     if (!contract) throw new Error("use-truapi: contract not ready");
-    const handle = (contract as Record<string, { tx: (...a: unknown[]) => Promise<TxResult> }>)[
-      method
-    ];
+    const handle = (
+      contract as Record<
+        string,
+        {
+          tx: (
+            ...a: unknown[]
+          ) => Promise<{ ok: true; value: TxResult } | { ok: false; error: Error }>;
+        }
+      >
+    )[method];
     if (!handle) throw new Error(`use-truapi: contract has no method "${method}"`);
-    return handle.tx(...(args ?? []));
+    // Pre-flight and submission failures ride the Result err channel
+    // (ContractError | TxError); a dispatch failure stays data on TxResult.ok.
+    return unwrapResult(await handle.tx(...(args ?? [])));
   }, options?.mutation);
   const { mutateAsync } = mutation;
   return {

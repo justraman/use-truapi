@@ -146,9 +146,12 @@ export function useBalance(
 /** Chain name/properties as reported by the host (null standalone). */
 export function useChainSpec(options?: ChainScope) {
   const runtime = useRuntime();
-  const { key: chainKey, chain } = resolveChain(runtime.config, options?.chain);
+  const chainKey = resolveChain(runtime.config, options?.chain).key;
   return useTruapiQuery(
     () => queryKeys.chainSpec(chainKey),
-    () => runtime.host.getChainSpec(chain.genesisHash),
+    async () => {
+      const genesisHash = await runtime.chains.getGenesisHash(options?.chain);
+      return genesisHash ? runtime.host.getChainSpec(genesisHash) : null;
+    },
   );
 }

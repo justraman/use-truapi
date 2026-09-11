@@ -1,21 +1,34 @@
 import {
+  type ContextualAlias,
   type LoginResult,
+  type ProductAccountLookup,
+  type ProductProofContext,
   type ProviderType,
+  type RegisteredRingVrfKey,
+  type RingLocation,
+  type RingVRFProof,
+  type RingVrfKeyDisclosure,
+  type RingVrfKeyHandle,
+  type RingVrfPublicKey,
   type SignerAccount,
   type SignerError,
   type SignerState,
+  type VrfSignature,
+  type VrfTranscriptItem,
   queryKeys,
 } from "@use-truapi/core";
 import type { PolkadotSigner } from "polkadot-api";
 import { type ComputedRef, computed } from "vue";
 import { useRuntime } from "../context";
 import {
+  type MaybeGetter,
   type MutationOptions,
   type NamedMutation,
   type OptionalVariables,
   type QueryOptions,
   type QueryResult,
   dropMutate,
+  toGetter,
   useStore,
   useTruapiMutation,
   useTruapiQuery,
@@ -131,5 +144,168 @@ export function useSignRaw(options?: {
   return {
     ...dropMutate(mutation),
     sign: (data: Uint8Array) => mutation.mutateAsync(data),
+  };
+}
+
+export interface SignVrfVariables {
+  /** Root domain-separation label: `Transcript::new(transcriptLabel)`. */
+  transcriptLabel: Uint8Array;
+  /** Transcript items replayed in order as `append_message(label, value)`. */
+  items: VrfTranscriptItem[];
+  /** Product account to sign with; defaults to the configured/derived product account 0. */
+  account?: ProductAccountLookup;
+}
+
+/**
+ * RFC-0023 sr25519 VRF signature from a product account: `sign(label, items)`.
+ * Deterministic for the same transcript, so put per-round values in `items`.
+ * Host-only; standalone the call rejects with `HostUnavailableError`.
+ */
+export function useSignVrf(options?: {
+  mutation?: MutationOptions<VrfSignature, SignVrfVariables>;
+}): NamedMutation<VrfSignature, SignVrfVariables> & {
+  sign: (
+    transcriptLabel: Uint8Array,
+    items: VrfTranscriptItem[],
+    account?: ProductAccountLookup,
+  ) => Promise<VrfSignature>;
+} {
+  const runtime = useRuntime();
+  const mutation = useTruapiMutation(
+    ({ transcriptLabel, items, account }: SignVrfVariables) =>
+      runtime.accounts.signVrf(transcriptLabel, items, account),
+    options?.mutation,
+  );
+  return {
+    ...dropMutate(mutation),
+    sign: (transcriptLabel, items, account) =>
+      mutation.mutateAsync({
+        transcriptLabel,
+        items,
+        ...(account !== undefined ? { account } : {}),
+      }),
+  };
+}
+
+/**
+ * RFC-0024 ring-VRF keys registered by `owner` (this product by default).
+ * Use the returned `handle`s for aliases and proofs instead of hard-coding a
+ * derivation index. Host-only: standalone the query errors with `HostUnavailableError`.
+ */
+export function useRingVrfKeys(
+  owner?: MaybeGetter<string | undefined>,
+  options?: { disclosure?: RingVrfKeyDisclosure; query?: QueryOptions<RegisteredRingVrfKey[]> },
+): QueryResult<RegisteredRingVrfKey[]> {
+  const runtime = useRuntime();
+  const getOwner = toGetter(owner ?? (() => undefined));
+  const disclosure = options?.disclosure ?? "Anonymized";
+  return useTruapiQuery(
+    () => queryKeys.ringVrfKeys(getOwner() ?? null, disclosure),
+    () => runtime.accounts.listRingVrfKeys(getOwner(), disclosure),
+    options,
+  );
+}
+
+export interface RegisterRingVrfKeyVariables {
+  /** Key derivation index within this product's ring-VRF domain. */
+  index: number;
+  /** Ring the key is declared for. */
+  ring: RingLocation;
+}
+
+/** Register a ring-VRF key owned by this product: `register(index, ring)` resolves its public key. */
+export function useRegisterRingVrfKey(options?: {
+  mutation?: MutationOptions<RingVrfPublicKey, RegisterRingVrfKeyVariables>;
+}): NamedMutation<RingVrfPublicKey, RegisterRingVrfKeyVariables> & {
+  register: (index: number, ring: RingLocation) => Promise<RingVrfPublicKey>;
+} {
+  const runtime = useRuntime();
+  const mutation = useTruapiMutation(
+    ({ index, ring }: RegisterRingVrfKeyVariables) =>
+      runtime.accounts.registerRingVrfKey(index, ring),
+    options?.mutation,
+  );
+  return {
+    ...dropMutate(mutation),
+    register: (index, ring) => mutation.mutateAsync({ index, ring }),
+  };
+}
+
+export interface AccountAliasVariables {
+  keyHandle: RingVrfKeyHandle;
+  context: ProductProofContext;
+  ring: RingLocation;
+}
+
+/** Contextual alias for a registered ring-VRF key — proves ring membership without naming the account: `derive(handle, context, ring)`. */
+export function useAccountAlias(options?: {
+  mutation?: MutationOptions<ContextualAlias, AccountAliasVariables>;
+}): NamedMutation<ContextualAlias, AccountAliasVariables> & {
+  derive: (
+    keyHandle: RingVrfKeyHandle,
+    context: ProductProofContext,
+    ring: RingLocation,
+  ) => Promise<ContextualAlias>;
+} {
+  const runtime = useRuntime();
+  const mutation = useTruapiMutation(
+    ({ keyHandle, context, ring }: AccountAliasVariables) =>
+      runtime.accounts.getAccountAlias(keyHandle, context, ring),
+    options?.mutation,
+  );
+  return {
+    ...dropMutate(mutation),
+    derive: (keyHandle, context, ring) => mutation.mutateAsync({ keyHandle, context, ring }),
+  };
+}
+
+export interface AccountProofVariables extends AccountAliasVariables {
+  message: Uint8Array;
+}
+
+/** Ring-VRF proof binding `message` to a product-scoped context: `prove(handle, context, ring, message)`. */
+export function useCreateAccountProof(options?: {
+  mutation?: MutationOptions<RingVRFProof, AccountProofVariables>;
+}): NamedMutation<RingVRFProof, AccountProofVariables> & {
+  prove: (
+    keyHandle: RingVrfKeyHandle,
+    context: ProductProofContext,
+    ring: RingLocation,
+    message: Uint8Array,
+  ) => Promise<RingVRFProof>;
+} {
+  const runtime = useRuntime();
+  const mutation = useTruapiMutation(
+    ({ keyHandle, context, ring, message }: AccountProofVariables) =>
+      runtime.accounts.createAccountProof(keyHandle, context, ring, message),
+    options?.mutation,
+  );
+  return {
+    ...dropMutate(mutation),
+    prove: (keyHandle, context, ring, message) =>
+      mutation.mutateAsync({ keyHandle, context, ring, message }),
+  };
+}
+
+export interface RingVrfSignVariables {
+  keyHandle: RingVrfKeyHandle;
+  message: Uint8Array;
+}
+
+/** Plain signature under a registered ring-VRF member key (no membership proof): `sign(handle, message)`. */
+export function useRingVrfSign(options?: {
+  mutation?: MutationOptions<Uint8Array, RingVrfSignVariables>;
+}): NamedMutation<Uint8Array, RingVrfSignVariables> & {
+  sign: (keyHandle: RingVrfKeyHandle, message: Uint8Array) => Promise<Uint8Array>;
+} {
+  const runtime = useRuntime();
+  const mutation = useTruapiMutation(
+    ({ keyHandle, message }: RingVrfSignVariables) =>
+      runtime.accounts.ringVrfSign(keyHandle, message),
+    options?.mutation,
+  );
+  return {
+    ...dropMutate(mutation),
+    sign: (keyHandle, message) => mutation.mutateAsync({ keyHandle, message }),
   };
 }

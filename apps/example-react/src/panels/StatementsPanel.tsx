@@ -72,10 +72,9 @@ export function StatementsPanel() {
           data-testid="presence-write"
           disabled={!presence.ready}
           onClick={() =>
-            void presence.write("presence", {
-              timestamp: Date.now(),
-              address: selected?.address,
-            })
+            void presence
+              .write("presence", { timestamp: Date.now(), address: selected?.address })
+              .catch(() => {})
           }
         >
           I'm here

@@ -1,0 +1,79 @@
+---
+title: useSubmitPreimage
+description: Store raw bytes through the host's preimage service and get their key back
+---
+
+`useSubmitPreimage` submits a preimage through the host: `submit(bytes)`
+resolves the `0x`-prefixed key (the content hash) the bytes are stored under,
+which [`usePreimage`](/docs/storage/use-preimage) reads back. The host takes
+care of the Bulletin transaction and the allowance it needs (RFC-0010
+`BulletinAllowance`), prompting the user the first time.
+
+Prefer [`useUpload`](/docs/storage/use-upload) for application data: it
+chunks large payloads, produces a CID and works standalone too. Reach for the
+preimage path when you need the raw host primitive, for example to publish
+something another product will look up by hash. Host-only: standalone
+`submit` rejects with `HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { usePreimage, useSubmitPreimage } from "@use-truapi/react";
+
+function PublishNote() {
+  const { submit, data: key, isPending, error } = useSubmitPreimage();
+  const stored = usePreimage(key);
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={() => void submit(new TextEncoder().encode("hello bulletin")).catch(() => {})}
+      >
+        Publish
+      </button>
+      {key && <code>{key}</code>}
+      {stored.data && <p>Read back: {new TextDecoder().decode(stored.data)}</p>}
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { usePreimage, useSubmitPreimage } from "@use-truapi/vue";
+
+const { submit, data: key, isPending, error } = useSubmitPreimage();
+const stored = usePreimage(() => key.value);
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="submit(new TextEncoder().encode('hello bulletin'))">
+    Publish
+  </button>
+  <code v-if="key">{{ key }}</code>
+  <p v-if="stored.data">Read back: {{ new TextDecoder().decode(stored.data) }}</p>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useSubmitPreimage.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useSubmitPreimage.md</include>

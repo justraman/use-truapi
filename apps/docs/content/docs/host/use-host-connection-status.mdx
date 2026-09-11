@@ -1,0 +1,70 @@
+---
+title: useHostConnectionStatus
+description: Live status of the host channel itself, for reconnecting and offline UI
+---
+
+`useHostConnectionStatus` reports the state of the transport between your app
+and the host: `"connecting"` while the client waits for the host channel,
+`"connected"` once it is established, and `"disconnected"` standalone or
+after the channel closes. It is the host-channel counterpart of the signer's
+connection status you get from [`useAccounts`](/docs/accounts/use-accounts):
+that one tracks whether a wallet is connected, this one tracks whether the
+host is reachable at all.
+
+Use it to render a reconnecting banner or to hold off host calls until the
+channel is up. Standalone the value is always `"disconnected"`, and the hook
+never builds a host client on its own outside a container.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useHostConnectionStatus, useIsHost } from "@use-truapi/react";
+
+function HostBanner() {
+  const isHost = useIsHost();
+  const status = useHostConnectionStatus();
+
+  if (!isHost) return null;
+  if (status === "connected") return null;
+  return <div role="status">{status === "connecting" ? "Connecting to host…" : "Host disconnected"}</div>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useHostConnectionStatus, useIsHost } from "@use-truapi/vue";
+
+const isHost = useIsHost();
+const status = useHostConnectionStatus();
+</script>
+
+<template>
+  <div v-if="isHost && status !== 'connected'" role="status">
+    {{ status === "connecting" ? "Connecting to host…" : "Host disconnected" }}
+  </div>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useHostMode`](/docs/host/use-host-mode) tells you whether there is a host to connect to.
+- [`useAccounts`](/docs/accounts/use-accounts) tracks the wallet connection on top of this channel.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useHostConnectionStatus.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useHostConnectionStatus.md</include>

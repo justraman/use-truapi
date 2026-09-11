@@ -1,15 +1,39 @@
 <script setup lang="ts">
-import { useFeatureSupported, useHostMode, useRuntime, useTheme } from "@use-truapi/vue";
+import {
+  useFeatureSupported,
+  useHostChainInfo,
+  useHostConnectionStatus,
+  useHostInfo,
+  useHostMode,
+  useLocale,
+  useProductContext,
+  useRuntime,
+  useTheme,
+} from "@use-truapi/vue";
+import { computed } from "vue";
 import { config } from "../config";
 
 const runtime = useRuntime();
 const hostMode = useHostMode();
+const connection = useHostConnectionStatus();
 const theme = useTheme();
-const chainSupported = useFeatureSupported({
-  tag: "Chain",
-  value: config.chains.assetHub.genesisHash,
-});
+const locale = useLocale();
+const hostInfo = useHostInfo();
+const productContext = useProductContext();
+// RFC-0026: prefer the genesis the host actually serves over the config's fallback.
+const discovered = useHostChainInfo(["AssetHub"]);
+const genesisHash = computed(
+  () => discovered.data.value?.chains.AssetHub ?? config.chains.assetHub.genesisHash,
+);
+const chainSupported = useFeatureSupported(() =>
+  genesisHash.value ? { tag: "Chain" as const, value: genesisHash.value } : undefined,
+);
 const chainNames = Object.keys(runtime.config.chains).join(", ");
+const hostInfoLabel = computed(() => {
+  const info = hostInfo.data.value;
+  if (info) return `${info.name} ${info.version} (${info.platform})`;
+  return hostInfo.isPending.value ? "…" : "no host info";
+});
 </script>
 
 <template>
@@ -33,10 +57,28 @@ const chainNames = Object.keys(runtime.config.chains).join(", ");
         <span class="badge" data-testid="host-mode">{{ hostMode }}</span>
       </div>
       <div class="header-badge">
+        <code class="hook-chip">useHostConnectionStatus</code>
+        <span class="badge" data-testid="host-connection">{{ connection }}</span>
+      </div>
+      <div class="header-badge">
+        <code class="hook-chip">useHostInfo</code>
+        <span class="badge" data-testid="host-info">{{ hostInfoLabel }}</span>
+      </div>
+      <div class="header-badge">
+        <code class="hook-chip">useProductContext</code>
+        <span class="badge" data-testid="product-context">
+          {{ productContext.data.value?.productId ?? (productContext.isPending.value ? "…" : "no product context") }}
+        </span>
+      </div>
+      <div class="header-badge">
         <code class="hook-chip">useTheme</code>
         <span class="badge" data-testid="theme">
           {{ theme.variant }}{{ theme.custom ? ` (${theme.custom})` : "" }}
         </span>
+      </div>
+      <div class="header-badge">
+        <code class="hook-chip">useLocale</code>
+        <span class="badge" data-testid="locale">{{ locale.languageTag }} · {{ locale.source }}</span>
       </div>
       <div class="header-badge">
         <code class="hook-chip">useFeatureSupported</code>

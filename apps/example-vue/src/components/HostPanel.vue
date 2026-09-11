@@ -2,6 +2,7 @@
 import {
   useDeriveEntropy,
   useDevicePermission,
+  useHostChainInfo,
   useHostNavigate,
   useHostStorage,
   useNotifications,
@@ -20,6 +21,19 @@ const permission = usePermission();
 const devicePermission = useDevicePermission();
 const allocation = useResourceAllocation();
 const entropy = useDeriveEntropy();
+// RFC-0026 discovery: which chains the host serves, by role.
+const chains = useHostChainInfo(["Relay", "AssetHub", "People", "Bulletin"]);
+const chainsLabel = computed(() => {
+  const data = chains.data.value;
+  if (!data) {
+    return chains.isPending.value
+      ? "discovering chains…"
+      : "no chain discovery (standalone or legacy host)";
+  }
+  return Object.entries(data.chains)
+    .map(([role, genesis]) => `${role} ${genesis.slice(0, 10)}…`)
+    .join(" · ");
+});
 const draft = ref("");
 
 const firstError = computed(
@@ -28,7 +42,8 @@ const firstError = computed(
     permission.error.value ??
     devicePermission.error.value ??
     allocation.error.value ??
-    entropy.error.value,
+    entropy.error.value ??
+    chains.error.value,
 );
 
 function onCancelNotification() {
@@ -122,6 +137,12 @@ function onDeriveEntropy() {
       </button>
       <span v-if="allocation.data.value" class="badge" data-testid="allocation-result">
         {{ allocation.data.value.join(", ") }}
+      </span>
+    </HookRow>
+    <HookRow hook="useHostChainInfo">
+      <span class="muted" data-testid="host-chains">
+        <template v-if="chains.data.value">network <code>{{ chains.data.value.network }}</code>: </template>
+        {{ chainsLabel }}
       </span>
     </HookRow>
     <HookRow hook="useDeriveEntropy">

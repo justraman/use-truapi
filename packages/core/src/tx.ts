@@ -9,6 +9,7 @@ import {
 import type { AccountsController } from "./accounts";
 import type { ChainController, TypedApiOf } from "./chain";
 import type { AnyChains } from "./config";
+import { unwrapResult } from "./host";
 
 export type { BatchMode, SubmitOptions, TxResult, TxStatus };
 
@@ -56,7 +57,10 @@ export function createTxController<TChains extends AnyChains>(
         chains.getTypedApi(options?.chain),
       ]);
       const tx = await build(api);
-      return submitAndWatch(tx, signer, options);
+      // The SDK reports signing/submission failures on the Result err channel
+      // (TxSigningRejectedError, TxValidityError, …); dispatch failures stay
+      // data on TxResult.ok. Throw the former so hooks surface them as `error`.
+      return unwrapResult(await submitAndWatch(tx, signer, options));
     },
     submitBatch: async (build, options) => {
       const [signer, api] = await Promise.all([
@@ -64,11 +68,13 @@ export function createTxController<TChains extends AnyChains>(
         chains.getTypedApi(options?.chain),
       ]);
       const calls = await build(api);
-      return batchSubmitAndWatch(
-        calls,
-        api as unknown as Parameters<typeof batchSubmitAndWatch>[1],
-        signer,
-        options,
+      return unwrapResult(
+        await batchSubmitAndWatch(
+          calls,
+          api as unknown as Parameters<typeof batchSubmitAndWatch>[1],
+          signer,
+          options,
+        ),
       );
     },
   };

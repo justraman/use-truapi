@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createRuntime, defineConfig, queryKeys } from "@use-truapi/core";
 import type { ChainDefinition } from "polkadot-api";
-import { createElement, type ReactNode } from "react";
+import { type ReactNode, createElement } from "react";
 import { describe, expect, it } from "vitest";
 import { TruapiProvider } from "../src/context";
 import { useLiveListQuery, useLiveQuery } from "../src/internal";

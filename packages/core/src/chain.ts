@@ -31,6 +31,12 @@ export interface ChainController<TChains extends AnyChains> {
   getClient(chain?: keyof TChains & string): Promise<PolkadotClient>;
   getTypedApi<K extends keyof TChains & string>(chain?: K): Promise<TypedApiOf<TChains, K>>;
   /**
+   * The genesis hash the chain is served under: discovered from the host
+   * (RFC-0026) when the config names a `hostChain` role, otherwise the
+   * configured `genesisHash`. Null when neither yields one.
+   */
+  getGenesisHash(chain?: keyof TChains & string): Promise<`0x${string}` | null>;
+  /**
    * Bridge an async typed-api Observable into a callback with safe teardown:
    * unsubscribing before the client resolves never leaks the subscription.
    */
@@ -60,25 +66,48 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
+/**
+ * Resolve the genesis hash a hosted chain should be requested under. A
+ * `hostChain` role is resolved through host discovery so the config survives
+ * testnet resets; hosts that predate discovery (or serve none of the roles)
+ * fall back to the configured hash.
+ */
+async function resolveHostedGenesis(
+  host: HostController,
+  key: string,
+  chain: ChainConfig,
+): Promise<`0x${string}`> {
+  if (chain.hostChain) {
+    const discovered = await host.getChainInfo([chain.hostChain]);
+    const genesis = discovered?.chains[chain.hostChain];
+    if (genesis) return genesis;
+  }
+  if (chain.genesisHash) return chain.genesisHash;
+  throw new Error(
+    `use-truapi: the host does not serve a "${chain.hostChain}" chain and chain "${key}" has no genesisHash fallback`,
+  );
+}
+
 async function buildClient(
   host: HostController,
+  key: string,
   chain: ChainConfig,
   timeoutMs: number,
 ): Promise<PolkadotClient> {
   const inHost = await host.detect();
   if (inHost) {
+    const genesisHash = await resolveHostedGenesis(host, key, chain);
     const provider = await withTimeout(
-      getHostProvider(chain.genesisHash),
+      getHostProvider(genesisHash),
       timeoutMs,
-      `host chain provider for ${chain.genesisHash}`,
+      `host chain provider for ${genesisHash}`,
     );
-    if (!provider)
-      throw new Error(`use-truapi: host returned no provider for ${chain.genesisHash}`);
+    if (!provider) throw new Error(`use-truapi: host returned no provider for ${genesisHash}`);
     return createClient(provider);
   }
   if (!chain.wsUrls?.length) {
     throw new Error(
-      `use-truapi: running standalone and chain ${chain.genesisHash} has no wsUrls configured — add wsUrls to the chain config to enable standalone development`,
+      `use-truapi: running standalone and chain "${key}" has no wsUrls configured — add wsUrls to the chain config to enable standalone development`,
     );
   }
   return createClient(getWsProvider(chain.wsUrls));
@@ -97,7 +126,7 @@ export function createChainController<TChains extends AnyChains>(
     const { key, chain } = resolveChain(config, chainKey);
     let client = clients.get(key);
     if (!client) {
-      client = buildClient(host, chain, timeoutMs);
+      client = buildClient(host, key, chain, timeoutMs);
       client.catch(() => clients.delete(key));
       clients.set(key, client);
     }
@@ -110,6 +139,18 @@ export function createChainController<TChains extends AnyChains>(
     const { chain } = resolveChain(config, chainKey);
     const client = await getClient(chainKey);
     return client.getTypedApi(chain.descriptor) as TypedApiOf<TChains, K>;
+  };
+
+  const getGenesisHash = async (
+    chainKey?: keyof TChains & string,
+  ): Promise<`0x${string}` | null> => {
+    const { key, chain } = resolveChain(config, chainKey);
+    if (!(await host.detect())) return chain.genesisHash ?? null;
+    try {
+      return await resolveHostedGenesis(host, key, chain);
+    } catch {
+      return null;
+    }
   };
 
   const watch: ChainController<TChains>["watch"] = (select, onValue, options) => {
@@ -139,6 +180,7 @@ export function createChainController<TChains extends AnyChains>(
   return {
     getClient,
     getTypedApi,
+    getGenesisHash,
     watch,
     watchBlockNumber: (onValue, options) => {
       let cancelled = false;

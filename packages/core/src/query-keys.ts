@@ -69,9 +69,18 @@ export const queryKeys = {
   featureSupported: (feature: unknown) =>
     ["truapi", "featureSupported", { feature: toKeyPart(feature) }] as const,
   hostStorage: (key: string) => ["truapi", "hostStorage", { key }] as const,
+  hostInfo: () => ["truapi", "hostInfo"] as const,
+  productContext: () => ["truapi", "productContext"] as const,
+  hostChainInfo: (identifiers: readonly string[]) =>
+    ["truapi", "hostChainInfo", { identifiers: [...identifiers].sort() }] as const,
 
   // accounts
   userId: () => ["truapi", "userId"] as const,
+  ringVrfKeys: (owner: string | null, disclosure: string) =>
+    ["truapi", "ringVrfKeys", { owner, disclosure }] as const,
+
+  // preimage
+  preimage: (key: string | null) => ["truapi", "preimage", { key }] as const,
 
   // contracts
   contract: (chain: string, manifest: QueryKeyPart, library: string, live: boolean) =>

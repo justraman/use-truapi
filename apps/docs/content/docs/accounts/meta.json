@@ -1,6 +1,6 @@
 {
   "title": "Accounts",
-  "description": "Wallet connection, account selection and signing",
+  "description": "Wallet connection, account selection, signing and personhood proofs",
   "pages": [
     "use-accounts",
     "use-selected-account",
@@ -9,6 +9,12 @@
     "use-signer",
     "use-login",
     "use-user-id",
-    "use-sign-raw"
+    "use-sign-raw",
+    "use-sign-vrf",
+    "use-ring-vrf-keys",
+    "use-register-ring-vrf-key",
+    "use-account-alias",
+    "use-create-account-proof",
+    "use-ring-vrf-sign"
   ]
 }

@@ -20,11 +20,7 @@ const config = defineConfig({
   chains: { test: { descriptor: {} as ChainDefinition, genesisHash: "0x11" as `0x${string}` } },
 });
 
-function withSetup<T>(
-  setup: () => T,
-  runtime = createRuntime(config),
-  queryClient?: QueryClient,
-) {
+function withSetup<T>(setup: () => T, runtime = createRuntime(config), queryClient?: QueryClient) {
   let result: T | undefined;
   const wrapper = mount(
     defineComponent({

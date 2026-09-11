@@ -1,0 +1,71 @@
+---
+title: useHostInfo
+description: Which host, and which build of it, is running the app
+---
+
+`useHostInfo` asks the host to identify itself (`System.host_info`) and
+returns a `HostInfo` as `data`: the `platform` category (`"Web" | "Android" |
+"Ios" | "Desktop" | "Cli" | "Unknown"`), the host's human-readable `name`
+(`"Polkadot Desktop"`, `"dotli"`, `"truapi-host"`) and its own `version`
+string. Use it to adapt layout density per platform, to label telemetry, or
+to put the exact host build into a bug report.
+
+The call is best-effort by design: `data` is `null` standalone and on hosts
+that predate the method, so branch on it before rendering. The answer never
+changes for the life of the connection, so it is fetched once and cached.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useHostInfo } from "@use-truapi/react";
+
+function HostBadge() {
+  const { data: host, isPending } = useHostInfo();
+
+  if (isPending) return null;
+  if (!host) return <span>Running standalone</span>;
+  return (
+    <span>
+      {host.name} {host.version} · {host.platform}
+    </span>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useHostInfo } from "@use-truapi/vue";
+
+const { data: host, isPending } = useHostInfo();
+</script>
+
+<template>
+  <span v-if="isPending" />
+  <span v-else-if="!host">Running standalone</span>
+  <span v-else>{{ host.name }} {{ host.version }} · {{ host.platform }}</span>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useHostMode`](/docs/host/use-host-mode) answers the coarser "am I in a host at all?" question.
+- [`useProductContext`](/docs/host/use-product-context) is the host's view of *your* identity.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useHostInfo.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useHostInfo.md</include>

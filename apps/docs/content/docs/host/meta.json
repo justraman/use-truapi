@@ -1,10 +1,15 @@
 {
   "title": "Host",
-  "description": "Host detection, theme, permissions, navigation, notifications and KV storage",
+  "description": "Host detection, identity, theme, locale, permissions, navigation, notifications and KV storage",
   "pages": [
     "use-host-mode",
     "use-is-host",
+    "use-host-connection-status",
+    "use-host-info",
+    "use-product-context",
+    "use-host-chain-info",
     "use-theme",
+    "use-locale",
     "use-permission",
     "use-device-permission",
     "use-resource-allocation",

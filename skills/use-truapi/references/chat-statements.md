@@ -97,7 +97,7 @@ Bot pattern: `useChatActions` handler checks `action.payload.tag === "ActionTrig
 
 `usePublishStatement<T>(options?: { mutation? }) → NamedMutation<boolean, PublishStatementVariables<T>>` — call `publish(data: T, options?: { topic2?, ttlSeconds? })`, resolves `boolean`.
 
-- Resolved boolean is data, not an exception: `true` = store accepted, `false` = undeliverable (store rejected, or running standalone).
+- Resolves `true` once the host accepted the statement, `false` standalone (nothing to publish to). A host-side rejection rejects with `StatementStoreError` (`StatementDataTooLargeError` > 512 bytes, `StatementConnectionError`, `StatementSubmitError`) so the reason lands in `error`.
 - Throws only for real failures, e.g. JSON encoding exceeding the 512-byte statement limit.
 - Scope with `topic2` (subscribers must filter on the same value); `ttlSeconds` overrides time-to-live.
 
@@ -132,7 +132,7 @@ function PingBoard({ name }: { name: string }) {
 - Last-write-wins: one value per channel name (newer write replaces). For presence, cursors, typing indicators — not feeds.
 - `values` keys are hex-encoded channel hashes, not the names you wrote — put identity (peer id, name) in the payload and render from it. A `timestamp` payload field drives LWW ordering; filled with current time when omitted.
 - Channels live under the app topic; different `topic2` values give fully independent channel maps (e.g. `topic2: \`doc-${docId}\``). Channel values are statements, so writes share the 512-byte JSON payload cap.
-- Standalone: `ready` stays `false`, `values` stays empty, `write` resolves `false` (also before init completes in a host — treat `!ready` as "not yet", and use `useHostMode()` if you need to tell "standalone" apart from "still connecting").
+- Standalone: `ready` stays `false`, `values` stays empty, `write` resolves `false` (also before init completes in a host — treat `!ready` as "not yet", and use `useHostMode()` if you need to tell "standalone" apart from "still connecting"). Once ready, `write` resolves `true` or rejects with `StatementStoreError`.
 - React re-creates the store when `topic2` changes. Vue quirk: `values`/`ready` are refs (`.value` in script), `write` is a plain function, and `topic2` is captured once — remount with `:key` to switch documents.
 
 Presence pattern: gate on `ready`, then `write(\`presence/${peerId}\`, { peerId, name, timestamp: Date.now() })` on a ~10s interval; render `[...values.values()]`.

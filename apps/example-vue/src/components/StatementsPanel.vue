@@ -36,10 +36,12 @@ function onPublish() {
 }
 
 function onPresence() {
-  void presence.write("presence", {
-    timestamp: Date.now(),
-    address: selected.value?.address,
-  });
+  void presence
+    .write("presence", {
+      timestamp: Date.now(),
+      address: selected.value?.address,
+    })
+    .catch(() => {});
 }
 </script>
 

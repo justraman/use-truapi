@@ -10,11 +10,14 @@ JSON-serializable value; subscribers on the same topic (see
 moments. Mutation state (`data`, `error`, `isPending`, `reset`) tracks the
 last publish.
 
-The resolved `boolean` is data, not an exception: `true` means the host's
-statement store accepted the statement, `false` means it was undeliverable
-(the store rejected it, or the app runs standalone). Thrown errors are
-reserved for real failures, such as a payload whose JSON encoding exceeds
-the 512 byte statement limit.
+The resolved `boolean` tells host from standalone: `true` means the host's
+statement store accepted the statement, `false` means the app runs standalone
+and there is nothing to publish to. A host-side rejection rejects with the
+SDK's `StatementStoreError` and lands in `error`: `StatementDataTooLargeError`
+when the JSON encoding exceeds the 512 byte limit, `StatementConnectionError`
+when the store is not connected, `StatementSubmitError` when the host refused
+to sign or the network refused the statement (for example a missing
+statement-store allowance).
 
 ## Usage
 

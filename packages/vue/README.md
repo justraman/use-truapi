@@ -2,8 +2,8 @@
 
 **Vue 3 composables for building Polkadot apps.**
 
-One install, one plugin, 51 composables. Wraps the entire
-[TruAPI](https://github.com/paritytech/truapi) /
+One install, one plugin, 64 composables. Wraps the entire
+[TruAPI](https://github.com/paritytech/host-rust-core) /
 [@parity/product-sdk](https://github.com/paritytech/product-sdk) surface —
 chain queries, wallet accounts, transactions, contracts, chat, statement
 store, payments, notifications and cloud storage — built on

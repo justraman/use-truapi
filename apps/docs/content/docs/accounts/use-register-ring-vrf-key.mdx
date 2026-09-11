@@ -1,0 +1,99 @@
+---
+title: useRegisterRingVrfKey
+description: Register a ring-VRF key owned by this product for a personhood ring (RFC-0024)
+---
+
+`useRegisterRingVrfKey` registers a ring-VRF key for this product:
+`register(index, ring)` derives key `index` within the product's ring-VRF
+domain, declares it for the `RingLocation` (the chain and collection holding
+the personhood ring) and resolves the key's public key. Registration is a
+prerequisite for [`useAccountAlias`](/docs/accounts/use-account-alias) and
+[`useCreateAccountProof`](/docs/accounts/use-create-account-proof), which
+address the key by the handle [`useRingVrfKeys`](/docs/accounts/use-ring-vrf-keys)
+returns afterwards.
+
+A `RingLocation` is `{ chainId, junctions }`: the People chain's genesis hash
+(resolve it with [`useHostChainInfo`](/docs/host/use-host-chain-info) rather
+than hard-coding it) and the path to the ring, typically a single
+`{ tag: "CollectionId", value }` junction. Registering does not make the
+account a ring *member*; membership is established through the host's
+personhood onboarding, and a fresh key answers proofs with `NotMember`.
+
+Host-only: standalone `register` rejects with `HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useHostChainInfo, useRegisterRingVrfKey, useRingVrfKeys } from "@use-truapi/react";
+
+// "pop:polkadot.network/people-lite"
+const PEOPLE_LITE = "0x706f703a706f6c6b61646f742e6e6574776f726b2f70656f706c652d6c697465" as const;
+
+function RegisterKey() {
+  const { data: chains } = useHostChainInfo(["People"]);
+  const keys = useRingVrfKeys();
+  const { register, isPending, error } = useRegisterRingVrfKey({
+    mutation: { onSuccess: () => void keys.refetch() },
+  });
+  const people = chains?.chains.People;
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={!people || isPending}
+        onClick={() =>
+          people && register(0, { chainId: people, junctions: [{ tag: "CollectionId", value: PEOPLE_LITE }] })
+        }
+      >
+        Register key #0
+      </button>
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useHostChainInfo, useRegisterRingVrfKey, useRingVrfKeys } from "@use-truapi/vue";
+
+const PEOPLE_LITE = "0x706f703a706f6c6b61646f742e6e6574776f726b2f70656f706c652d6c697465" as const;
+const chains = useHostChainInfo(["People"]);
+const keys = useRingVrfKeys();
+const { register, isPending, error } = useRegisterRingVrfKey({
+  mutation: { onSuccess: () => void keys.refetch() },
+});
+
+function onRegister() {
+  const people = chains.data.value?.chains.People;
+  if (people) void register(0, { chainId: people, junctions: [{ tag: "CollectionId", value: PEOPLE_LITE }] });
+}
+</script>
+
+<template>
+  <button type="button" :disabled="!chains.data.value?.chains.People || isPending" @click="onRegister">
+    Register key #0
+  </button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useRegisterRingVrfKey.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useRegisterRingVrfKey.md</include>

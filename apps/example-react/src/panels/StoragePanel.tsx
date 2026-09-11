@@ -1,4 +1,11 @@
-import { useCid, useStorageAuthorization, useUpload } from "@use-truapi/react";
+import {
+  useCid,
+  useIsHost,
+  usePreimage,
+  useStorageAuthorization,
+  useSubmitPreimage,
+  useUpload,
+} from "@use-truapi/react";
 import { useState } from "react";
 import { Card, HookRow } from "../ui";
 
@@ -8,8 +15,12 @@ export function StoragePanel() {
   const [lastCid, setLastCid] = useState<string | undefined>(undefined);
   const fetched = useCid(lastCid);
   const [draft, setDraft] = useState("");
+  // Raw preimage path (host-only): submit bytes, read them back by key.
+  const isHost = useIsHost();
+  const submitPreimage = useSubmitPreimage();
+  const preimage = usePreimage(submitPreimage.data, { enabled: isHost });
 
-  const error = authorization.error ?? upload.error ?? fetched.error;
+  const error = authorization.error ?? upload.error ?? fetched.error ?? submitPreimage.error;
 
   return (
     <Card title="Cloud storage" desc="CID-addressed storage on the Bulletin chain.">
@@ -53,6 +64,35 @@ export function StoragePanel() {
           </span>
         ) : (
           <span className="muted">upload something to read it back by CID</span>
+        )}
+      </HookRow>
+      <HookRow hook={["useSubmitPreimage", "usePreimage"]}>
+        {isHost ? (
+          <>
+            <button
+              type="button"
+              data-testid="preimage-submit"
+              disabled={submitPreimage.isPending || draft === ""}
+              onClick={() =>
+                void submitPreimage.submit(new TextEncoder().encode(draft)).catch(() => {})
+              }
+            >
+              {submitPreimage.isPending ? "Submitting…" : "Submit as preimage"}
+            </button>
+            {submitPreimage.data && (
+              <span className="muted">
+                key <code data-testid="preimage-key">{submitPreimage.data.slice(0, 18)}…</code>{" "}
+                reads back:{" "}
+                <span data-testid="preimage-content">
+                  {preimage.data ? new TextDecoder().decode(preimage.data) : "looking up…"}
+                </span>
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="muted" data-testid="preimage-unavailable">
+            host only
+          </span>
         )}
       </HookRow>
       {error && <p className="error">{error.message}</p>}

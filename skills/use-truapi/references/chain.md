@@ -8,7 +8,7 @@ Connecting to configured chains and reading/watching their state. All hooks acce
 
 - Raw PAPI client: escape hatch for block observables (`bestBlocks$`), `getFinalizedBlock()`, submitting pre-signed extrinsics. Prefer `useTypedApi` / `useChainQuery` / `useChainSubscription` for typed work.
 - Failed connections are dropped, so the next consumer retries.
-- Host: provider requested from host by the chain's `genesisHash` (times out after `hostProviderTimeoutMs`, default 15000). Standalone: WebSocket via configured `wsUrls`; a chain without `wsUrls` throws.
+- Host: provider requested from the host by genesis hash — discovered from the chain's `hostChain` role (RFC-0026, survives testnet resets) else the configured `genesisHash` (times out after `hostProviderTimeoutMs`, default 15000). Standalone: WebSocket via configured `wsUrls`; a chain without `wsUrls` throws. `runtime.chains.getGenesisHash(chain)` exposes the resolved hash.
 
 ## useTypedApi
 
@@ -81,4 +81,4 @@ const { data: finalized } = useChainSubscription(
 `useChainSpec(options?: { chain? }) → UseQueryResult<ChainSpec | null, Error>`
 
 - `ChainSpec`: `name`, `properties` (`ss58Format`, `tokenDecimals`, `tokenSymbol`, chain-specific extras; `null` if the host's JSON couldn't parse), and raw JSON in `propertiesRaw`.
-- Host-only: standalone it resolves to `null` (no error) — guard on `data` before rendering. Fetched once per chain; never changes at runtime.
+- Host-only: standalone it resolves to `null` (no error) — guard on `data` before rendering. Fetched once per chain; never changes at runtime. Looked up by the resolved genesis (`hostChain` discovery, else `genesisHash`).

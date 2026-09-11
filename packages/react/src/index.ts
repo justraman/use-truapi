@@ -18,6 +18,7 @@ export * from "./hooks/chat";
 export * from "./hooks/statements";
 export * from "./hooks/payments";
 export * from "./hooks/storage";
+export * from "./hooks/preimage";
 export * from "./hooks/format";
 
 // Everything an app needs from core, re-exported so `@use-truapi/react` is
@@ -36,14 +37,19 @@ export {
   h160ToSs58,
   toGenericSs58,
   addressesEqual,
+  findRingVrfKeyHandle,
+  isSdkError,
   HostError,
   HostUnavailableError,
+  HostCallFailedError,
   ChainNotSupportedError,
   TxError,
   TxDispatchError,
   TxSigningRejectedError,
+  TxValidityError,
   ContractError,
   ContractRevertedError,
+  StatementStoreError,
 } from "@use-truapi/core";
 export type {
   AbiEntry,
@@ -52,10 +58,23 @@ export type {
   ChainConfig,
   Contract,
   ContractDef,
+  HostChainDiscovery,
+  HostChainIdentifier,
+  HostConnectionStatus,
+  HostInfo,
+  HostPlatform,
+  LocaleState,
+  ProductContext,
+  RegisteredRingVrfKey,
+  RingLocation,
+  RingVrfKeyHandle,
   SignerAccount,
   SignerState,
+  ThemeState,
   TruapiConfig,
   TruapiRuntime,
   TxResult,
   TxStatus,
+  VrfSignature,
+  VrfTranscriptItem,
 } from "@use-truapi/core";

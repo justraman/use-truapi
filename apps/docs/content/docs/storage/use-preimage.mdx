@@ -1,0 +1,73 @@
+---
+title: usePreimage
+description: Live lookup of a preimage by key through the host's Bulletin-backed preimage service
+---
+
+`usePreimage` looks up the bytes behind a preimage `key` (a `0x` hash) via
+the host's `Preimage.lookup_subscribe`. `data` is the `Uint8Array` once the
+host finds it, and `null` while it is still searching, so distinguish the two
+when rendering. The lookup is a live subscription shared per key across
+components and torn down with the last consumer.
+
+This is the raw layer under [`useCid`](/docs/storage/use-cid): `useCid`
+resolves a CID to Bulletin chunks and reassembles them, `usePreimage` hands
+you exactly the bytes stored under one key. While `key` is `undefined` the
+query stays disabled. Host-only: standalone the query errors with
+`HostUnavailableError`, so gate it on [`useIsHost`](/docs/host/use-is-host).
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useIsHost, usePreimage } from "@use-truapi/react";
+
+function Preimage({ key }: { key?: `0x${string}` }) {
+  const isHost = useIsHost();
+  const { data, error } = usePreimage(key, { enabled: isHost });
+
+  if (!isHost) return <p>Host only.</p>;
+  if (error) return <p role="alert">{error.message}</p>;
+  if (data === undefined || data === null) return <p>Looking up…</p>;
+  return <pre>{new TextDecoder().decode(data)}</pre>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useIsHost, usePreimage } from "@use-truapi/vue";
+
+const props = defineProps<{ key?: `0x${string}` }>();
+const isHost = useIsHost();
+const { data, error } = usePreimage(() => props.key, { enabled: () => isHost.value });
+</script>
+
+<template>
+  <p v-if="!isHost">Host only.</p>
+  <p v-else-if="error" role="alert">{{ error.message }}</p>
+  <p v-else-if="data == null">Looking up…</p>
+  <pre v-else>{{ new TextDecoder().decode(data) }}</pre>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useSubmitPreimage`](/docs/storage/use-submit-preimage) stores bytes and returns the key this hook looks up.
+- [`useCid`](/docs/storage/use-cid) is the CID-addressed layer most apps want.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/usePreimage.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/usePreimage.md</include>

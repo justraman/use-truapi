@@ -1,6 +1,7 @@
 import {
   useDeriveEntropy,
   useDevicePermission,
+  useHostChainInfo,
   useHostNavigate,
   useHostStorage,
   useNotifications,
@@ -18,6 +19,8 @@ export function HostPanel() {
   const devicePermission = useDevicePermission();
   const allocation = useResourceAllocation();
   const entropy = useDeriveEntropy();
+  // RFC-0026 discovery: which chains the host serves, by role.
+  const chains = useHostChainInfo(["Relay", "AssetHub", "People", "Bulletin"]);
   const [draft, setDraft] = useState("");
 
   const error =
@@ -25,7 +28,8 @@ export function HostPanel() {
     permission.error ??
     devicePermission.error ??
     allocation.error ??
-    entropy.error;
+    entropy.error ??
+    chains.error;
 
   return (
     <Card
@@ -125,6 +129,22 @@ export function HostPanel() {
         {allocation.data && (
           <span className="badge" data-testid="allocation-result">
             {allocation.data.join(", ")}
+          </span>
+        )}
+      </HookRow>
+      <HookRow hook="useHostChainInfo">
+        {chains.data ? (
+          <span className="muted" data-testid="host-chains">
+            network <code>{chains.data.network}</code>:{" "}
+            {Object.entries(chains.data.chains)
+              .map(([role, genesis]) => `${role} ${genesis.slice(0, 10)}…`)
+              .join(" · ")}
+          </span>
+        ) : (
+          <span className="muted" data-testid="host-chains">
+            {chains.isPending
+              ? "discovering chains…"
+              : "no chain discovery (standalone or legacy host)"}
           </span>
         )}
       </HookRow>

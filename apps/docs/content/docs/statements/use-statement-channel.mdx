@@ -15,7 +15,10 @@ from those. A `timestamp` field in the payload drives last-write-wins
 ordering; when omitted, the current time is filled in on write.
 
 Channels are host-only. Standalone, `ready` stays `false`, `values` stays
-empty, and `write` resolves `false`.
+empty, and `write` resolves `false`. Once ready, `write` resolves `true` when
+the host accepted the statement and rejects with a `StatementStoreError`
+(too large, not connected, allowance missing) when it did not, so catch the
+promise or surface the reason.
 
 ## Usage
 

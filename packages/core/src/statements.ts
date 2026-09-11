@@ -5,7 +5,7 @@ import {
   StatementStoreClient,
 } from "@parity/product-sdk-statement-store";
 import type { AnyChains, TruapiConfig } from "./config";
-import type { HostController } from "./host";
+import { type HostController, unwrapResult } from "./host";
 
 export type { PublishOptions, ReceivedStatement };
 
@@ -15,7 +15,12 @@ export interface StatementsController {
    * features degrade instead of crashing. Failures evict the cached attempt.
    */
   getClient(): Promise<StatementStoreClient | null>;
-  /** Resolves false standalone (message silently undeliverable — callers decide). */
+  /**
+   * Resolves `false` standalone (message silently undeliverable — callers
+   * decide) and `true` once the host accepted the statement. A host-side
+   * rejection throws the SDK's `StatementStoreError` (too large, not
+   * connected, network rejected) so the reason reaches the caller.
+   */
   publish<T>(data: T, options?: PublishOptions): Promise<boolean>;
   subscribe<T>(
     onStatement: (statement: ReceivedStatement<T>) => void,
@@ -60,7 +65,8 @@ export function createStatementsController<TChains extends AnyChains>(
     publish: async (data, options) => {
       const client = await getClient();
       if (!client) return false;
-      return client.publish(data, options);
+      unwrapResult(await client.publish(data, options));
+      return true;
     },
     subscribe: (onStatement, options) => {
       let cancelled = false;

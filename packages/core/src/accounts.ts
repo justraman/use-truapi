@@ -1,4 +1,20 @@
-import { HostUnavailableError, getAccountsProvider } from "@parity/product-sdk-host";
+import {
+  type ContextualAlias,
+  HostUnavailableError,
+  type ProductAccountLookup,
+  type ProductProofContext,
+  type RegisteredRingVrfKey,
+  type RingLocation,
+  type RingVRFProof,
+  type RingVrfKeyDisclosure,
+  type RingVrfKeyHandle,
+  type RingVrfPublicKey,
+  type VrfSignature,
+  type VrfTranscriptItem,
+  findRingVrfKeyHandle,
+  formatHostError,
+  getAccountsProvider,
+} from "@parity/product-sdk-host";
 import {
   DevProvider,
   HostProvider,
@@ -10,10 +26,27 @@ import {
 } from "@parity/product-sdk-signer";
 import type { PolkadotSigner } from "polkadot-api";
 import type { AnyChains, TruapiConfig } from "./config";
-import type { HostController } from "./host";
+import { type HostController, unwrapResult } from "./host";
 import { type ReadonlyStore, createStore } from "./store";
 
-export type { ProviderType, SignerAccount, SignerError, SignerState };
+export type {
+  ContextualAlias,
+  ProductAccountLookup,
+  ProductProofContext,
+  ProviderType,
+  RegisteredRingVrfKey,
+  RingLocation,
+  RingVRFProof,
+  RingVrfKeyDisclosure,
+  RingVrfKeyHandle,
+  RingVrfPublicKey,
+  SignerAccount,
+  SignerError,
+  SignerState,
+  VrfSignature,
+  VrfTranscriptItem,
+};
+export { findRingVrfKeyHandle };
 
 export type LoginResult = "Success" | "AlreadyConnected" | "Rejected";
 
@@ -34,11 +67,48 @@ export interface AccountsController {
   /** Primary DotNS username; null standalone or when not connected. */
   getUserId(): Promise<string | null>;
   /**
+   * The dotNS identifier product accounts derive from: `productAccount.dotNsIdentifier`
+   * when configured, else the host's product context, else `<dappName>.dot`.
+   */
+  getProductId(): Promise<string>;
+  /**
    * The host gates signing on `ChainSubmit`; when missing, a sign request
    * hangs silently instead of erroring. Call in the click context before
    * each transaction. No-op standalone.
    */
   ensureChainSubmitPermission(): Promise<void>;
+  /**
+   * RFC-0023 sr25519 VRF signature over a Merlin transcript built from
+   * `transcriptLabel` and `items`, signed by a product account (the
+   * configured one by default). Host-only.
+   */
+  signVrf(
+    transcriptLabel: Uint8Array,
+    items: VrfTranscriptItem[],
+    account?: ProductAccountLookup,
+  ): Promise<VrfSignature>;
+  /** RFC-0024: register a ring-VRF key owned by this product; resolves its public key. */
+  registerRingVrfKey(index: number, ring: RingLocation): Promise<RingVrfPublicKey>;
+  /** RFC-0024: ring-VRF keys registered by `owner` (this product by default). */
+  listRingVrfKeys(
+    owner?: string,
+    disclosure?: RingVrfKeyDisclosure,
+  ): Promise<RegisteredRingVrfKey[]>;
+  /** Contextual alias for a registered key: proves ring membership without naming the account. */
+  getAccountAlias(
+    keyHandle: RingVrfKeyHandle,
+    context: ProductProofContext,
+    ring: RingLocation,
+  ): Promise<ContextualAlias>;
+  /** Ring-VRF proof binding `message` to the product-scoped `context`. */
+  createAccountProof(
+    keyHandle: RingVrfKeyHandle,
+    context: ProductProofContext,
+    ring: RingLocation,
+    message: Uint8Array,
+  ): Promise<RingVRFProof>;
+  /** Plain signature under a registered ring-VRF member key (no membership proof). */
+  ringVrfSign(keyHandle: RingVrfKeyHandle, message: Uint8Array): Promise<Uint8Array>;
   manager: SignerManager;
   destroy(): void;
 }
@@ -51,6 +121,13 @@ export function createAccountsController<TChains extends AnyChains>(
   // productAccount is configured — without dappName, host connect() resolves
   // with zero accounts.
   const dappName = config.dappName ?? "use-truapi";
+  const derivationIndex = config.productAccount?.derivationIndex ?? 0;
+
+  // Resolved before each host connect so the provider derives its account from
+  // the id the host actually bound this product to (RFC: product context),
+  // instead of a hard-coded `<dappName>.dot` guess.
+  let resolvedProductId: string | null = config.productAccount?.dotNsIdentifier ?? null;
+
   const manager = new SignerManager({
     dappName,
     createProvider: (type) =>
@@ -58,12 +135,12 @@ export function createAccountsController<TChains extends AnyChains>(
         ? new DevProvider({})
         : new HostProvider({
             dappName,
-            ...(config.productAccount
+            ...(resolvedProductId
               ? {
                   productAccount: {
-                    dotNsIdentifier: config.productAccount.dotNsIdentifier,
-                    derivationIndex: config.productAccount.derivationIndex ?? 0,
-                    requestName: config.productAccount.requestName ?? false,
+                    dotNsIdentifier: resolvedProductId,
+                    derivationIndex,
+                    requestName: config.productAccount?.requestName ?? false,
                   },
                 }
               : {}),
@@ -75,11 +152,21 @@ export function createAccountsController<TChains extends AnyChains>(
   // store seed above is the priming read.
   const stopManagerSub = manager.subscribe((next) => state.set(next));
 
+  const getProductId = async (): Promise<string> => {
+    if (config.productAccount?.dotNsIdentifier) return config.productAccount.dotNsIdentifier;
+    const context = await host.getProductContext().catch(() => null);
+    return context?.productId ?? (dappName.includes(".") ? dappName : `${dappName}.dot`);
+  };
+
   let connectPromise: Promise<SignerAccount[]> | null = null;
   const connect = (provider?: ProviderType): Promise<SignerAccount[]> => {
     if (!connectPromise) {
       connectPromise = (async () => {
         const resolved = provider ?? ((await host.detect()) ? "host" : "dev");
+        if (resolved === "host" && !config.productAccount?.dotNsIdentifier) {
+          const context = await host.getProductContext().catch(() => null);
+          resolvedProductId = context?.productId ?? null;
+        }
         const result = await manager.connect(resolved);
         if (!result.ok) throw result.error;
         return [...result.value];
@@ -93,6 +180,13 @@ export function createAccountsController<TChains extends AnyChains>(
 
   if (config.autoConnect) void connect().catch(() => {});
 
+  const requireProvider = async () => {
+    if (!(await host.detect())) throw new HostUnavailableError("accounts");
+    const provider = await getAccountsProvider();
+    if (!provider) throw new HostUnavailableError("accounts");
+    return provider;
+  };
+
   return {
     state,
     connect,
@@ -100,25 +194,16 @@ export function createAccountsController<TChains extends AnyChains>(
       connectPromise = null;
       manager.disconnect();
     },
-    select: (address) => {
-      const result = manager.selectAccount(address);
-      if (!result.ok) throw result.error;
-      return result.value;
-    },
+    select: (address) => unwrapResult(manager.selectAccount(address)),
     getSigner: () => manager.getSigner(),
-    signRaw: async (data) => {
-      const result = await manager.signRaw(data);
-      if (!result.ok) throw result.error;
-      return result.value;
-    },
+    signRaw: async (data) => unwrapResult(await manager.signRaw(data)),
     login: async (reason) => {
       if (!(await host.detect())) return "AlreadyConnected";
-      const provider = await getAccountsProvider();
-      if (!provider) throw new HostUnavailableError("accounts");
+      const provider = await requireProvider();
       return provider.requestLogin(reason).match(
         (value) => value,
         (error) => {
-          throw new Error(`use-truapi: login failed: ${JSON.stringify(error)}`, { cause: error });
+          throw new Error(`use-truapi: login failed: ${formatHostError(error)}`, { cause: error });
         },
       );
     },
@@ -131,11 +216,56 @@ export function createAccountsController<TChains extends AnyChains>(
         () => null,
       );
     },
+    getProductId,
     ensureChainSubmitPermission: async () => {
       if (!(await host.detect())) return;
       const granted = await host.requestPermission({ tag: "ChainSubmit", value: undefined });
       if (!granted)
         throw new Error("use-truapi: the host denied permission to submit transactions");
+    },
+    // The ring-VRF and VRF paths need a connected host provider; connect on
+    // demand so callers get the same click-to-sign ergonomics as `tx.submit`.
+    signVrf: async (transcriptLabel, items, account) => {
+      await connect();
+      const target = account ?? { dotNsIdentifier: await getProductId(), derivationIndex };
+      return unwrapResult(await manager.signVrf(target, transcriptLabel, items));
+    },
+    registerRingVrfKey: async (index, ring) => {
+      await connect();
+      return unwrapResult(await manager.registerRingVrfKey(index, ring));
+    },
+    // Listing is a read: go through the host accounts provider so mounting a
+    // query never forces a wallet connection (and its prompts) on the user.
+    listRingVrfKeys: async (owner, disclosure) => {
+      const provider = await requireProvider();
+      return provider.listRingVrfKeys(owner ?? (await getProductId()), disclosure).match(
+        (value) => value,
+        (error) => {
+          throw new Error(`use-truapi: listRingVrfKeys failed: ${formatHostError(error)}`, {
+            cause: error,
+          });
+        },
+      );
+    },
+    getAccountAlias: async (keyHandle, context, ring) => {
+      await connect();
+      return unwrapResult(await manager.getProductAccountAlias(keyHandle, context, ring));
+    },
+    createAccountProof: async (keyHandle, context, ring, message) => {
+      await connect();
+      return unwrapResult(await manager.createRingVRFProof(keyHandle, context, ring, message));
+    },
+    ringVrfSign: async (keyHandle, message) => {
+      // Not on SignerManager yet — go through the host accounts provider directly.
+      const provider = await requireProvider();
+      return provider.ringVrfSign(keyHandle, message).match(
+        (value) => value,
+        (error) => {
+          throw new Error(`use-truapi: ringVrfSign failed: ${formatHostError(error)}`, {
+            cause: error,
+          });
+        },
+      );
     },
     manager,
     destroy: () => {

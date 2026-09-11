@@ -72,6 +72,32 @@ const { login } = useLogin({ mutation: { onSuccess: () => refetch() } });
 - Signs arbitrary bytes with the currently selected account — for off-chain proofs/auth challenges, not transactions. The `data` argument is required (unlike `connect`/`login`).
 - Rejects (and sets `error`) when no account is connected or the user rejects the signing prompt.
 
+## useSignVrf
+
+`useSignVrf(options?: { mutation? }): { sign(transcriptLabel: Uint8Array, items: { label: Uint8Array; value: Uint8Array }[], account?: ProductAccountLookup) => Promise<VrfSignature>, data, error, isPending, reset }` — `VrfSignature = { preOutput: Uint8Array; proof: Uint8Array }`
+
+- RFC-0023 sr25519 VRF from a product account (default: the runtime's product account index 0). Deterministic per transcript + key: put per-round values in `items`, use a namespaced label (`my-app/lottery/v1`), stay under 32 items / 8 KiB.
+- Prompts the user per call unless an `AutoSigning` allowance was granted (`useResourceAllocation`) — that allowance covers ALL signing by the account. Host-only: standalone rejects with `HostUnavailableError`.
+
+## Personhood ring-VRF (RFC-0024)
+
+Host-only; everything rejects/errs with `HostUnavailableError` standalone. Keys are named by opaque `RingVrfKeyHandle`s from `useRingVrfKeys` — never hard-code a derivation index for another product. `RingLocation = { chainId: peopleGenesis, junctions: [{ tag: "CollectionId", value: "0x…" }] }` — get `peopleGenesis` from `useHostChainInfo(["People"])`; `ProductProofContext = { productId, suffix: { tag: "Index", value: 0 } }` with `productId` from `useProductContext`.
+
+- `useRingVrfKeys(owner?: string, options?: { disclosure?: "Anonymized" | "PublicKey"; query? }) → UseQueryResult<RegisteredRingVrfKey[]>` — keys registered by `owner` (this product by default). `RegisteredRingVrfKey = { handle, rings: RingLocation[], publicKey? }`. `findRingVrfKeyHandle(keys, ring)` (exported) picks the handle declared for a ring.
+- `useRegisterRingVrfKey(options?) → { register(index: number, ring: RingLocation) => Promise<Uint8Array /* public key */> }` — registers key `index` for `ring`; refetch `useRingVrfKeys` after. Registering ≠ membership: a fresh key gets `NotMember` on proofs.
+- `useAccountAlias(options?) → { derive(handle, context, ring) => Promise<{ context: Uint8Array; alias: Uint8Array }> }` — stable per (key, context), unlinkable across contexts; the identifier to key personhood-gated state on.
+- `useCreateAccountProof(options?) → { prove(handle, context, ring, message: Uint8Array) => Promise<{ proof, contextualAlias, ringIndex, ringRevision }> }` — verifiable ring-membership proof over `message`. Errors: `NotMember`, `NotAllowlisted` (another product's key on hosts without an allowlist).
+- `useRingVrfSign(options?) → { sign(handle, message: Uint8Array) => Promise<Uint8Array /* 64 bytes */> }` — plain signature under the member key, no membership proof.
+
+```tsx
+const { data: ctx } = useProductContext();
+const { data: chains } = useHostChainInfo(["People"]);
+const ring = chains?.chains.People && { chainId: chains.chains.People, junctions: [{ tag: "CollectionId" as const, value: PEOPLE_LITE }] };
+const { data: keys } = useRingVrfKeys(undefined, { disclosure: "PublicKey" });
+const { derive } = useAccountAlias();
+const alias = await derive(keys![0].handle, { productId: ctx!.productId, suffix: { tag: "Index", value: 0 } }, ring!);
+```
+
 ## useTx
 
 `useTx(options?: { chain?: K, mutation? }): { submit(build, options?) => Promise<TxResult>, phase, data, error, isPending, isSuccess, status, reset, ... }`
@@ -79,7 +105,7 @@ const { login } = useLogin({ mutation: { onSuccess: () => refetch() } });
 - `build: (api) => SubmittableTransaction | Promise<...>` — built against the typed PAPI api; pass `{ chain: "people" }` to build against a specific chain's api.
 - Submit options: `waitFor?: "finalized"` (default resolves at best-block) and `onStatus?: (status: TxStatus) => void` with `TxStatus = "signing" | "broadcasting" | "in-block" | "finalized" | "error"`. `phase` exposes the same lifecycle plus `"idle"`; `reset()` clears state and returns `phase` to `"idle"`.
 - First submit requests the `ChainSubmit` permission and connects the signer if needed — no manual pre-flight.
-- Errors: thrown `TxSigningRejectedError` / `TxError` (base class — `instanceof TxError` catches any tx error) mean the tx never reached a block. Dispatch failure is data: `TxResult = { ok: boolean, txHash, block: { hash, number, index }, events, dispatchError? }` — always check `result.ok`. `dispatchError` is the raw decoded polkadot-api enum (typed `unknown`); walk its nested `.type`/`.value` fields for a `"Pallet.ErrorName"` label, or just show a generic failure message.
+- Errors: thrown `TxSigningRejectedError` / `TxValidityError` (rejected pre-inclusion, e.g. `Invalid.Payment`) / `TxError` (base class — `instanceof TxError` catches any tx error) mean the tx never reached a block. Dispatch failure is data: `TxResult = { ok: boolean, txHash, block: { hash, number, index }, events, dispatchError? }` — always check `result.ok`. `dispatchError` is the raw decoded polkadot-api enum (typed `unknown`); walk its nested `.type`/`.value` fields for a `"Pallet.ErrorName"` label, or just show a generic failure message.
 
 ```tsx
 import { useTx } from "@use-truapi/react";

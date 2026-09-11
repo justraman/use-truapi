@@ -4,7 +4,9 @@ description: Chain name and properties as reported by the host
 ---
 
 `useChainSpec` asks the host (Polkadot Desktop or Mobile) for a chain's spec,
-looked up by the chain's configured `genesisHash`. `data` is a `ChainSpec`
+looked up by the genesis hash the host serves the chain under: the one
+discovered through the chain's `hostChain` role (RFC-0026), else the
+configured `genesisHash`. `data` is a `ChainSpec`
 with the human-readable `name`, parsed `properties` (`ss58Format`,
 `tokenDecimals`, `tokenSymbol`, plus chain-specific extras) and the raw JSON
 string in `propertiesRaw`. `properties` is `null` if the host's JSON couldn't
@@ -66,7 +68,7 @@ const { data: spec, isPending, error } = useChainSpec();
 </Tabs>
 
 To get the spec of a chain other than the default, pass its key; the host is
-asked for that chain's configured `genesisHash`:
+asked for that chain's resolved genesis hash:
 
 ```ts
 const { data: peopleSpec } = useChainSpec({ chain: "people" });
@@ -76,6 +78,7 @@ const { data: peopleSpec } = useChainSpec({ chain: "people" });
 
 - [`useChainClient`](/docs/chain/use-chain-client) also behaves differently between host and standalone.
 - [`useBalance`](/docs/chain/use-balance) pairs with the spec's decimals and symbol for display.
+- [`useHostChainInfo`](/docs/host/use-host-chain-info) is the discovery step that supplies the genesis hash.
 
 ## API reference
 

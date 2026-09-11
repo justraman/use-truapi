@@ -1,0 +1,88 @@
+---
+title: useRingVrfKeys
+description: Ring-VRF keys a product has registered, with the opaque handles proofs and aliases need (RFC-0024)
+---
+
+`useRingVrfKeys` lists the ring-VRF keys registered by `owner`, this product
+by default (its id comes from the host's product context). Each
+`RegisteredRingVrfKey` carries the opaque `handle` that
+[`useAccountAlias`](/docs/accounts/use-account-alias),
+[`useCreateAccountProof`](/docs/accounts/use-create-account-proof) and
+[`useRingVrfSign`](/docs/accounts/use-ring-vrf-sign) take, plus the
+`rings` it was declared for. Handles are the only way to name a key: product
+code never hard-codes another product's derivation index.
+
+With `disclosure: "PublicKey"` the host also returns each key's public key
+(granted for your own keys, prompted for someone else's); the default
+`"Anonymized"` omits it. Use `findRingVrfKeyHandle(keys, ring)` (exported
+from the package) to pick the handle declared for a given ring.
+
+Host-only: standalone the query errors with `HostUnavailableError`, so
+gate it on [`useIsHost`](/docs/host/use-is-host).
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { findRingVrfKeyHandle, useIsHost, useRingVrfKeys, type RingLocation } from "@use-truapi/react";
+
+function KeyPicker({ ring }: { ring: RingLocation }) {
+  const isHost = useIsHost();
+  const { data: keys, isPending } = useRingVrfKeys(undefined, {
+    disclosure: "PublicKey",
+    query: { enabled: isHost },
+  });
+  const handle = keys ? findRingVrfKeyHandle(keys, ring) : undefined;
+
+  if (!isHost) return <p>Host only.</p>;
+  if (isPending) return <p>Loading keys…</p>;
+  return <p>{keys?.length ?? 0} keys · {handle ? "one declared for this ring" : "none for this ring"}</p>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { findRingVrfKeyHandle, useIsHost, useRingVrfKeys, type RingLocation } from "@use-truapi/vue";
+import { computed } from "vue";
+
+const props = defineProps<{ ring: RingLocation }>();
+const isHost = useIsHost();
+const keys = useRingVrfKeys(undefined, {
+  disclosure: "PublicKey",
+  query: { enabled: computed(() => isHost.value) },
+});
+const handle = computed(() =>
+  keys.data.value ? findRingVrfKeyHandle(keys.data.value, props.ring) : undefined,
+);
+</script>
+
+<template>
+  <p v-if="!isHost">Host only.</p>
+  <p v-else>{{ keys.data.value?.length ?? 0 }} keys · {{ handle ? "declared for this ring" : "none" }}</p>
+</template>
+```
+
+Pass a getter as `owner` to list another product's keys reactively.
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useRegisterRingVrfKey`](/docs/accounts/use-register-ring-vrf-key) adds a key to this list.
+- [`useHostChainInfo`](/docs/host/use-host-chain-info) resolves the People chain genesis a `RingLocation` points at.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useRingVrfKeys.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useRingVrfKeys.md</include>

@@ -7,6 +7,7 @@ import {
 } from "@parity/product-sdk-cloud-storage";
 import type { AccountsController } from "./accounts";
 import type { AnyChains, TruapiConfig } from "./config";
+import { unwrapResult } from "./host";
 
 export type { AuthorizationStatus, ProgressEvent, StoreResult };
 
@@ -64,13 +65,15 @@ export function createCloudStorageController<TChains extends AnyChains>(
       if (options?.onProgress) builder = builder.withCallback(options.onProgress);
       return builder.send();
     },
-    fetchBytes: async (cid) => (await getClient()).fetchBytes(cid),
-    fetchJson: async (cid) => (await getClient()).fetchJson(cid),
+    // The read helpers report failures on the Result err channel
+    // (CloudStorageHostUnavailableError, lookup timeouts, …).
+    fetchBytes: async (cid) => unwrapResult(await (await getClient()).fetchBytes(cid)),
+    fetchJson: async (cid) => unwrapResult(await (await getClient()).fetchJson(cid)),
     checkAuthorization: async (address) => {
       const client = await getClient();
       const target = address ?? accounts.state.get().selectedAccount?.address;
       if (!target) throw new Error("use-truapi: no address to check authorization for");
-      return client.checkAuthorization(target);
+      return unwrapResult(await client.checkAuthorization(target));
     },
   };
 }

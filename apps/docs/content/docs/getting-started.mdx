@@ -30,7 +30,9 @@ with `papi add` or prebuilt ones such as `@parity/product-sdk-descriptors`.
 
 `defineConfig` describes your chains plus optional feature config (statements,
 cloud storage, product account). The `const` generic preserves your chain
-keys, which is what makes every hook chain-typed later.
+keys, which is what makes every hook chain-typed later. Each chain needs a
+`hostChain` role, a `genesisHash`, or both: the role lets the host resolve
+the chain against its own network, the hash pins it explicitly.
 
 ```ts title="config.ts"
 import { paseo_asset_hub } from "@parity/product-sdk-descriptors/paseo-asset-hub";
@@ -40,7 +42,11 @@ export const config = defineConfig({
   chains: {
     assetHub: {
       descriptor: paseo_asset_hub,
-      genesisHash: "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
+      // Inside a host the genesis is discovered by role (RFC-0026), so a
+      // testnet reset never strands the app; the descriptor's hash is the
+      // fallback for hosts that predate discovery.
+      hostChain: "AssetHub",
+      genesisHash: paseo_asset_hub.genesis as `0x${string}`,
       // Used only when running standalone (outside a Polkadot host):
       wsUrls: ["wss://paseo-asset-hub-next-rpc.polkadot.io"],
     },
@@ -177,9 +183,10 @@ Every hook follows one of two shapes:
 
 Your app runs in one of two modes, detected at runtime:
 
-- Host: embedded in a Polkadot host (Desktop/Mobile). Chain connections
-  route through the host; signing, permissions, chat, statements, payments
-  and notifications are available.
+- Host: embedded in a Polkadot host (Desktop/Mobile), or served by the
+  `truapi-host` CLI in local development. Chain connections route through
+  the host; signing, permissions, chat, statements, payments, notifications,
+  preimages and personhood proofs are available.
 - Standalone: a plain browser tab. Chain connections use your configured
   `wsUrls`. Host-only features either stay inert (statements, theme follows
   `prefers-color-scheme`) or throw `HostUnavailableError` (payments, chat,

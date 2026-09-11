@@ -31,7 +31,8 @@ function onTopUp() {
   void topUp
     .topUp(1_000_000_000n /* 0.1 PAS */, {
       tag: "ProductAccount",
-      value: { derivationIndex: 0 },
+      // RFC-0022: derivation indices are a tagged selector on the wire.
+      value: { derivationIndex: { tag: "Index", value: 0 } },
     })
     .catch(() => {});
 }

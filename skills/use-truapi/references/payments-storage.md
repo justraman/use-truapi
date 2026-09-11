@@ -49,8 +49,8 @@ function PayButton({ price, merchant }: { price: bigint; merchant: `0x${string}`
 `useTopUp(options?: { mutation? }) → { topUp(amount: bigint, source: PaymentTopUpSource, into?: number) => Promise<void>, ...mutation state }`
 
 - Moves funds into the payment purse; resolves once the host performed the top-up. No return value — watch `usePaymentBalance` to see funds land. `into` targets a non-main purse.
-- `PaymentTopUpSource` is a tagged union: `{ tag: "ProductAccount", value: { derivationIndex: number } }` (a product-scoped account), `"PrivateKey"` (one-time account by sr25519 secret key), or `"Coins"` (coin secret keys, one per coin).
-- Fire-and-forget pattern: `void topUp(amount, { tag: "ProductAccount", value: { derivationIndex: 0 } }).catch(() => {})` — the failure still shows up in `error`, success in `isSuccess`.
+- `PaymentTopUpSource` is a tagged union: `{ tag: "ProductAccount", value: { derivationIndex: { tag: "Index", value: number } } }` (a product-scoped account; RFC-0022 tagged selector), `"PrivateKey"` (one-time account by 64-byte sr25519 secret key), or `"Coins"` (coin secret keys, one per coin).
+- Fire-and-forget pattern: `void topUp(amount, { tag: "ProductAccount", value: { derivationIndex: { tag: "Index", value: 0 } } }).catch(() => {})` — the failure still shows up in `error`, success in `isSuccess`.
 - Host-only: standalone the call rejects with `HostUnavailableError`.
 
 ## usePaymentStatus
@@ -66,7 +66,7 @@ function PayButton({ price, merchant }: { price: bigint; merchant: `0x${string}`
 `useUpload(options?: { mutation? }) → { upload(data: Uint8Array, options?: { chunkSize?: number; onProgress?: (event: ProgressEvent) => void }) => Promise<StoreResult>, ...mutation state }`
 
 - Stores raw bytes on Bulletin-backed cloud storage. `StoreResult` receipt: `cid` (CID object — `.toString()` for a string, may be undefined), `size`, plus `blockNumber` and `extrinsicIndex` when known. Pass the cid to `useCid` to read content back.
-- Config prerequisite: `defineConfig` must include `cloudStorage: { environment }`, or every storage hook rejects with a config error. Works in host and standalone alike.
+- Config prerequisite: `defineConfig` must include `cloudStorage: { environment: "paseo" | "previewnet" | "devnet" }`, or every storage hook rejects with a config error. Works in host and standalone alike.
 - Uploads are signed: the storage client is created lazily on first use and signs with the connected account — connect before the first upload or it rejects with a clear error.
 - Large payloads: pass per-upload `chunkSize` and `onProgress` for chunked upload with progress events.
 
@@ -104,6 +104,20 @@ function NoteUploader() {
 - `data`: `authorized` (boolean), `remainingTransactions`, `remainingBytes` (bigint), `expiration` (block number) — all zero when not authorized. Cached per address.
 - No argument checks the selected account; pass an address to check another. If neither exists the query errors — gate behind a connect step or render `error.message`.
 - Use before `useUpload`: an unauthorized account or exhausted quota rejects the upload on chain.
+
+## useSubmitPreimage
+
+`useSubmitPreimage(options?: { mutation? }) → { submit(value: Uint8Array) => Promise<"0x${string}">, ...mutation state }`
+
+- Raw host preimage primitive (`Preimage.submit`): stores bytes through the host's Bulletin flow and resolves their key (hash). The host handles the transaction and the `BulletinAllowance`. Prefer `useUpload` for app data (chunking, CID, works standalone).
+- Host-only: standalone rejects with `HostUnavailableError`.
+
+## usePreimage
+
+`usePreimage(key: "0x${string}" | undefined, options?: { enabled?; query? }) → query result; data: Uint8Array | null`
+
+- Live lookup by key (`Preimage.lookup_subscribe`), shared per key. `data === null` = host still searching; `undefined` = not fetched yet. Disabled while `key` is `undefined`.
+- Host-only: standalone the query errors with `HostUnavailableError` — gate on `useIsHost` (`{ enabled: isHost }`).
 
 ## useFormattedBalance
 

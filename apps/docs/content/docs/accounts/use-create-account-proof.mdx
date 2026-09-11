@@ -1,0 +1,78 @@
+---
+title: useCreateAccountProof
+description: Ring-VRF proof binding a message to a product-scoped context (RFC-0024)
+---
+
+`useCreateAccountProof` generates a ring-VRF proof: `prove(keyHandle,
+context, ring, message)` resolves a `RingVRFProof` with the raw `proof`
+bytes, the `contextualAlias` it commits to, and the `ringIndex` /
+`ringRevision` it was generated against. Verifiers (a chain precompile, a
+backend) check that *some* member of the ring produced it for exactly this
+context and message, without learning which member. The alias is the same
+one [`useAccountAlias`](/docs/accounts/use-account-alias) returns.
+
+Arguments mirror `useAccountAlias` plus the `message` to bind. A key whose
+account is not a ring member fails with the host's `NotMember` error; a
+handle owned by another product fails with `NotAllowlisted` on hosts without
+an allowlist. Host-only: standalone `prove` rejects with
+`HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useCreateAccountProof, type ProductProofContext, type RingLocation, type RingVrfKeyHandle } from "@use-truapi/react";
+
+function Vote(props: { handle: RingVrfKeyHandle; context: ProductProofContext; ring: RingLocation }) {
+  const { prove, isPending, error } = useCreateAccountProof();
+
+  async function onVote(option: string) {
+    const proof = await prove(props.handle, props.context, props.ring, new TextEncoder().encode(option));
+    await fetch("/api/vote", { method: "POST", body: JSON.stringify({ option, proof: Array.from(proof.proof) }) });
+  }
+
+  return (
+    <>
+      <button type="button" onClick={() => onVote("yes")} disabled={isPending}>Vote yes</button>
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useCreateAccountProof, type ProductProofContext, type RingLocation, type RingVrfKeyHandle } from "@use-truapi/vue";
+
+const props = defineProps<{ handle: RingVrfKeyHandle; context: ProductProofContext; ring: RingLocation }>();
+const { prove, isPending, error } = useCreateAccountProof();
+
+async function onVote(option: string) {
+  const proof = await prove(props.handle, props.context, props.ring, new TextEncoder().encode(option));
+  console.log("ring", proof.ringIndex, "revision", proof.ringRevision);
+}
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="onVote('yes')">Vote yes</button>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useCreateAccountProof.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useCreateAccountProof.md</include>

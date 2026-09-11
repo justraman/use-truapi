@@ -1,0 +1,98 @@
+---
+title: useHostChainInfo
+description: Resolve chain roles to genesis hashes against the host's configured network (RFC-0026)
+---
+
+`useHostChainInfo` resolves protocol-defined chain roles (`"Relay" |
+"AssetHub" | "People" | "Bulletin"`) to the genesis hashes the host serves
+them under, plus the ecosystem the host is configured for (`"polkadot"`,
+`"paseo"`, …) as `data.network`. It is the wire method behind the
+`hostChain` field in your chain config: instead of baking a genesis hash into
+the bundle and shipping a new build after every testnet reset, the app asks
+the host which chain plays which role.
+
+Roles the host does not serve are absent from `data.chains`. `data` is `null`
+standalone, on hosts that predate discovery, and when the host serves none of
+the requested roles, so keep a fallback (the descriptor's own `genesis`) for
+those cases. The answer is stable for the life of the connection and cached
+per set of roles; a host that changes network expects products to reconnect.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useFeatureSupported, useHostChainInfo } from "@use-truapi/react";
+import { paseo_asset_hub } from "@parity/product-sdk-descriptors/paseo-asset-hub";
+
+function ChainStatus() {
+  const { data: discovery } = useHostChainInfo(["AssetHub", "People"]);
+  const assetHub = discovery?.chains.AssetHub ?? (paseo_asset_hub.genesis as `0x${string}`);
+  const { data: supported } = useFeatureSupported({ tag: "Chain", value: assetHub });
+
+  return (
+    <p>
+      {discovery ? `${discovery.network} network` : "network unknown"} · asset hub{" "}
+      {supported ? "supported" : "unsupported"}
+    </p>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useHostChainInfo } from "@use-truapi/vue";
+
+const { data: discovery } = useHostChainInfo(["AssetHub", "People"]);
+</script>
+
+<template>
+  <p v-if="discovery">
+    {{ discovery.network }}: asset hub {{ discovery.chains.AssetHub }}, people
+    {{ discovery.chains.People }}
+  </p>
+  <p v-else>No chain discovery (standalone or legacy host).</p>
+</template>
+```
+
+Pass a getter for a reactive role list.
+
+</Tab>
+</Tabs>
+
+## Config integration
+
+Most apps never call this hook directly. Name the role in the chain config
+and the runtime resolves the genesis before it asks the host for a provider:
+
+```ts
+defineConfig({
+  chains: {
+    assetHub: {
+      descriptor: paseo_asset_hub,
+      hostChain: "AssetHub",                                // discovered inside a host
+      genesisHash: paseo_asset_hub.genesis as `0x${string}`, // fallback for legacy hosts
+      wsUrls: ["wss://…"],                                   // standalone
+    },
+  },
+});
+```
+
+## See also
+
+- [`useChainSpec`](/docs/chain/use-chain-spec) reads name and token properties once the genesis is known.
+- [`useFeatureSupported`](/docs/host/use-feature-supported) probes a single genesis hash.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useHostChainInfo.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useHostChainInfo.md</include>
