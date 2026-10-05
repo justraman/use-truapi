@@ -82,6 +82,9 @@ export const queryKeys = {
   // preimage
   preimage: (key: string | null) => ["truapi", "preimage", { key }] as const,
 
+  // pocket
+  pocketCards: () => ["truapi", "pocketCards"] as const,
+
   // contracts
   contract: (chain: string, manifest: QueryKeyPart, library: string, live: boolean) =>
     ["truapi", "contract", { chain, manifest, library, live }] as const,

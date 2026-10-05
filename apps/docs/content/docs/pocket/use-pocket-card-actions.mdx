@@ -1,0 +1,53 @@
+---
+title: usePocketCardActions
+description: Presses and value changes inside one Pocket card's face
+---
+
+`usePocketCardActions(cardId, onAction)` subscribes to the actions triggered
+inside one card's face: a `clickAction` or `valueChangeAction` named in the
+tree the card sent comes back as a `PocketCardAction` with the `actionId` and
+the `payload`. It is the only channel back from a face, which is otherwise a
+one-way stream. The handler is read through a ref, so it may close over
+state freely. Host-only: standalone `onError` receives `HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { usePocketCardActions } from "@use-truapi/react";
+
+function CardController() {
+  usePocketCardActions("balance", (action) => {
+    if (action.actionId === "refresh") refetchBalance();
+  });
+  return null;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { usePocketCardActions } from "@use-truapi/vue";
+
+usePocketCardActions("balance", (action) => {
+  if (action.actionId === "refresh") refetchBalance();
+});
+</script>
+```
+
+</Tab>
+</Tabs>
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/usePocketCardActions.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/usePocketCardActions.md</include>

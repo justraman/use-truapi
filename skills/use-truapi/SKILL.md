@@ -119,6 +119,7 @@ observable · `useBlockNumber` · `useBalance` live native balance (planck) ·
 `useAccounts` wallet state + connect/disconnect/select · `useSelectedAccount` ·
 `useConnect` · `useDisconnect` · `useSigner` PolkadotSigner · `useLogin`
 RFC-0009 host login · `useUserId` DotNS username · `useSignRaw` sign bytes ·
+`useSignRawUnwatermarked` deprecated bare-byte proof signature ·
 `useSignVrf` sr25519 VRF over a transcript (RFC-0023) · `useRingVrfKeys` ·
 `useRegisterRingVrfKey` · `useAccountAlias` · `useCreateAccountProof` ·
 `useRingVrfSign` personhood ring-VRF (RFC-0024) ·
@@ -134,11 +135,18 @@ pre-flight · `useEnsureAccountMapped` required once before contract txs.
 `useHostConnectionStatus` transport state · `useHostInfo` host name/version/
 platform · `useProductContext` canonical product id · `useHostChainInfo`
 chain roles → genesis (RFC-0026) · `useTheme` · `useLocale` host language ·
-`usePermission` RFC-0002 · `useDevicePermission` camera/notifications ·
+`usePickContact` host contact picker → opaque handle · `useWorkerOperation`
+keep a Worker runtime alive · `usePermission` RFC-0002 · `useDevicePermission` camera/notifications ·
 `useResourceAllocation` RFC-0010 allowances · `useHostNavigate` .dot/https
 deep links · `useFeatureSupported` · `useDeriveEntropy` stable 32-byte
 secrets (RFC-0007) · `useNotifications` push (RFC-0019) · `useHostStorage`
 product-scoped KV JSON.
+
+**Pocket & renderer** → [references/pocket.md](references/pocket.md)
+`usePocketCards` the product's cards in the host's Pocket tab (live) ·
+`useRemovePocketCard` · `usePocketCard` draw a card face on demand ·
+`usePocketCardActions` presses inside a face · `useRenderer` draw chat/input
+bodies through the render slot.
 
 **Chat & statements** → [references/chat-statements.md](references/chat-statements.md)
 `useChatRoom` register room · `useChatBot` bot identity · `useChatRooms` ·

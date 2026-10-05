@@ -6,6 +6,8 @@ export * from "./live-query";
 export * from "./runtime";
 export { createHostController, isUnsupportedCall, unwrapResult } from "./host";
 export type {
+  ContactHandle,
+  ContactPickOutcome,
   HostChainDiscovery,
   HostChainIdentifier,
   HostConnectionStatus,
@@ -14,8 +16,20 @@ export type {
   HostKvStorage,
   HostMode,
   HostPlatform,
+  HostWorker,
   ProductContext,
 } from "./host";
+export type {
+  CardDrawHandler,
+  CardRender,
+  PocketCard,
+  PocketCardAction,
+  PocketController,
+  RenderContextTag,
+  RenderHandler,
+  RendererController,
+  RendererNode,
+} from "./pocket";
 export type { ThemeState } from "./theme";
 export type { LocaleState } from "./locale";
 export type { HexString, PreimageController } from "./preimage";

@@ -2,7 +2,7 @@
 
 **React hooks for building Polkadot apps.**
 
-One install, one provider, 64 hooks. Wraps the entire
+One install, one provider, 72 hooks. Wraps the entire
 [TruAPI](https://github.com/paritytech/host-rust-core) /
 [@parity/product-sdk](https://github.com/paritytech/product-sdk) surface —
 chain queries, wallet accounts, transactions, contracts, chat, statement

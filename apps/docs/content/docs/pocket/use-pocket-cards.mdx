@@ -1,0 +1,72 @@
+---
+title: usePocketCards
+description: The product's cards in the host's Pocket tab, live
+---
+
+`usePocketCards` returns the cards the host currently holds for this product
+(`Pocket.list_subscribe`), as a live list: the whole set on subscribe and
+again after every change. Each `PocketCard` carries its `cardId` and whether
+it is `privileged` (placed by the host itself, so the product cannot remove
+it). The host owns the collection — a product declares its cards in the
+worker manifest, observes them here and may remove them, but cannot add one.
+
+Host-only: standalone the query errors with `HostUnavailableError`, so gate it
+on [`useIsHost`](/docs/host/use-is-host) or pass `enabled`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useIsHost, usePocketCards } from "@use-truapi/react";
+
+function Cards() {
+  const isHost = useIsHost();
+  const { data: cards } = usePocketCards({ enabled: isHost });
+  if (!isHost) return null;
+  return (
+    <ul>
+      {cards?.map((card) => (
+        <li key={card.cardId}>{card.cardId}{card.privileged ? " (host)" : ""}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useIsHost, usePocketCards } from "@use-truapi/vue";
+
+const isHost = useIsHost();
+const { data: cards } = usePocketCards({ enabled: () => isHost.value });
+</script>
+
+<template>
+  <ul v-if="isHost">
+    <li v-for="card in cards" :key="card.cardId">{{ card.cardId }}{{ card.privileged ? " (host)" : "" }}</li>
+  </ul>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`useRemovePocketCard`](/docs/pocket/use-remove-pocket-card) gives a card up.
+- [`usePocketCard`](/docs/pocket/use-pocket-card) draws a card's face when the host shows it.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/usePocketCards.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/usePocketCards.md</include>

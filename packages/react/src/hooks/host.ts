@@ -1,6 +1,7 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  type ContactPickOutcome,
   type HostChainDiscovery,
   type HostChainIdentifier,
   type HostConnectionStatus,
@@ -18,6 +19,7 @@ import {
   type NamedMutation,
   type QueryOptions,
   dropMutate,
+  useLiveQuery,
   useStore,
   useTruapiMutation,
   useTruapiQuery,
@@ -85,6 +87,61 @@ export function useHostChainInfo(
     () => runtime.host.getChainInfo(identifiers),
     options,
   );
+}
+
+/**
+ * Open the host's contact picker: `pick()` resolves a `ContactPickOutcome` —
+ * `{ tag: "Picked", value: { handle } }` with an opaque handle the host later
+ * resolves to the person's account, or `Dismissed` / `NoContacts` as data.
+ * The product never sees the contact list. Host-only: standalone (and on hosts
+ * without a picker) `pick` rejects with `HostUnavailableError`.
+ */
+export function usePickContact(options?: {
+  mutation?: MutationOptions<ContactPickOutcome, void>;
+}): NamedMutation<ContactPickOutcome, void> & { pick: () => Promise<ContactPickOutcome> } {
+  const runtime = useRuntime();
+  const mutation = useTruapiMutation(() => runtime.host.pickContact(), options?.mutation);
+  const { mutateAsync } = mutation;
+  return {
+    ...dropMutate(mutation),
+    pick: useCallback(() => mutateAsync(), [mutateAsync]),
+  };
+}
+
+export interface WorkerOperationApi {
+  /** Open a pending operation the host keeps the worker alive for; resolves its id. */
+  begin: (label?: string) => Promise<number>;
+  /** Close an operation. Idempotent. */
+  end: (id: number) => Promise<void>;
+  /** Run `work` inside an operation, ending it however `work` settles. */
+  run: <T>(work: () => Promise<T>, label?: string) => Promise<T>;
+}
+
+/**
+ * Worker-lifecycle bookkeeping for products that run as a background
+ * `Worker`: wrap long-running work in an operation so the host does not stop
+ * the runtime mid-way. Host-only; every call rejects with
+ * `HostUnavailableError` standalone.
+ */
+export function useWorkerOperation(): WorkerOperationApi {
+  const runtime = useRuntime();
+  const begin = useCallback(
+    (label?: string) => runtime.host.worker.beginOperation(label),
+    [runtime],
+  );
+  const end = useCallback((id: number) => runtime.host.worker.endOperation(id), [runtime]);
+  const run = useCallback(
+    async <T>(work: () => Promise<T>, label?: string): Promise<T> => {
+      const id = await begin(label);
+      try {
+        return await work();
+      } finally {
+        await end(id).catch(() => {});
+      }
+    },
+    [begin, end],
+  );
+  return { begin, end, run };
 }
 
 /** RFC-0002 remote permissions (ChainSubmit, StatementSubmit, Remote domains, …): `request(permission)`. */
@@ -218,9 +275,11 @@ export type HostStorageValue<T> = UseQueryResult<T | null, Error> & {
 };
 
 /**
- * Product-scoped KV storage: host localStorage inside a container, browser
- * localStorage standalone. JSON-serialized. Writes update the query cache
- * in place under `queryKeys.hostStorage(key)`.
+ * Product-scoped KV storage, live: host localStorage inside a container
+ * (`LocalStorage.subscribe`, so writes from the product's other runtimes show
+ * up), browser localStorage standalone (following the cross-tab `storage`
+ * event). JSON-serialized. Writes update the query cache in place under
+ * `queryKeys.hostStorage(key)`.
  */
 export function useHostStorage<T>(
   key: string,
@@ -229,11 +288,16 @@ export function useHostStorage<T>(
   const runtime = useRuntime();
   const queryClient = useQueryClient();
   const queryKey = queryKeys.hostStorage(key);
-  const data = useTruapiQuery<T | null>(
+  const data = useLiveQuery<T | null>({
     queryKey,
-    () => runtime.host.storage.getJSON<T>(key),
-    options,
-  );
+    attach: (onValue, onError) =>
+      runtime.host.storage.watch(
+        key,
+        (raw) => onValue(raw === null ? null : (JSON.parse(raw) as T)),
+        { onError },
+      ),
+    ...(options?.query !== undefined ? { query: options.query } : {}),
+  });
   const set = useCallback(
     async (value: T) => {
       await runtime.host.storage.setJSON(key, value);

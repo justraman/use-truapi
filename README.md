@@ -6,14 +6,15 @@
 > move into [@parity/product-sdk](https://github.com/paritytech/product-sdk),
 > which is the right place for it to live long term.
 
-One install, one provider, 64 hooks. `use-truapi` wraps the entire
+One install, one provider, 72 hooks. `use-truapi` wraps the entire
 [TruAPI](https://github.com/paritytech/host-rust-core) /
 [@parity/product-sdk](https://github.com/paritytech/product-sdk) surface —
 chain queries, wallet accounts, transactions, contracts, chat, statement
-store, payments, notifications, cloud storage, preimages, personhood proofs
-and host identity — so your frontend never imports (or even installs) the
-underlying SDK packages. Tracks TruAPI protocol 0.14 (`@parity/truapi`
-0.13.1) and the product-sdk v0.27 wave. Every hook is built
+store, payments, notifications, cloud storage, preimages, personhood proofs,
+host identity, contacts, Pocket cards and worker lifecycle — so your frontend
+never imports (or even installs) the underlying SDK packages. Tracks TruAPI
+protocol 0.23 (`@parity/truapi` 0.23.0, wire codec 3) and the product-sdk
+v0.33 wave. Every hook is built
 on [TanStack Query](https://tanstack.com/query), so you get caching,
 `staleTime`/`gcTime` strategies, refetching, invalidation and devtools.
 
@@ -79,7 +80,8 @@ and [`/llms-full.txt`](https://justraman.github.io/use-truapi/llms-full.txt).
 | Signing permission | `ChainSubmit` requested per tx | no-op |
 | Theme / locale | host theme and language subscriptions | `prefers-color-scheme` / `navigator.language` |
 | Host identity, product context, chain discovery, connection status | native | `null` / `"disconnected"` |
-| KV storage | host localStorage | browser localStorage |
+| KV storage | host localStorage, live per key | browser localStorage, live across tabs |
+| Contacts, Pocket cards, renderer, worker operations | native | `HostUnavailableError` |
 | Chat / payments / notifications / cloud reads / preimages | native | unavailable — hooks error or stay inert (documented per hook) |
 | VRF and ring-VRF personhood (RFC-0023/0024) | native | `HostUnavailableError` |
 | Statements | sponsored (RFC-0010) publish/subscribe | inert (`publish` → `false`, lists stay empty) |

@@ -7,6 +7,12 @@ import { type ContractsController, createContractsController } from "./contracts
 import { type HostController, createHostController } from "./host";
 import { type LocaleState, createLocaleStore } from "./locale";
 import { type PaymentsController, createPaymentsController } from "./payments";
+import {
+  type PocketController,
+  type RendererController,
+  createPocketController,
+  createRendererController,
+} from "./pocket";
 import { type PreimageController, createPreimageController } from "./preimage";
 import { type StatementsController, createStatementsController } from "./statements";
 import type { ReadonlyStore } from "./store";
@@ -27,6 +33,8 @@ export interface TruapiRuntime<TChains extends AnyChains = AnyChains> {
   payments: PaymentsController;
   cloudStorage: CloudStorageController;
   preimage: PreimageController;
+  pocket: PocketController;
+  renderer: RendererController;
   /** Terminal: tears down clients, subscriptions and the signer manager. */
   destroy(): void;
 }
@@ -52,6 +60,8 @@ export function createRuntime<TChains extends AnyChains>(
     payments: createPaymentsController(host),
     cloudStorage: createCloudStorageController(config, accounts),
     preimage: createPreimageController(host),
+    pocket: createPocketController(host),
+    renderer: createRendererController(host),
     destroy: () => {
       chains.destroy();
       accounts.destroy();

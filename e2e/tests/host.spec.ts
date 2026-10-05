@@ -6,9 +6,10 @@ import { test as base, expect } from "@playwright/test";
 const { testHost } = createTestHostFixture({
   productUrl: "http://localhost:4173",
   accounts: ["alice", "bob"],
-  // The app connects via its product account; map it to funded Alice. The
+  // The app connects via its product account; map the whole product subtree to
+  // funded Alice (test-sdk ≥ 0.15 keys this by product id, not "id/index"). The
   // test host predates product context, so the app falls back to `<dappName>.dot`.
-  productAccounts: { "use-truapi-example.dot/0": "alice" },
+  productAccounts: { "use-truapi-example.dot": "alice" },
   // Paseo Asset Hub Next is re-genesised periodically and the test-sdk's pinned
   // constant lags; route by the genesis the example's descriptor (and so its
   // config fallback) carries, which is what the app asks the host for.

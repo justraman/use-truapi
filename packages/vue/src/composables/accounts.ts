@@ -147,6 +147,31 @@ export function useSignRaw(options?: {
   };
 }
 
+/**
+ * Sign bytes with the product account **without** the `<Bytes>` watermark, for
+ * runtimes that verify a bare-byte ownership proof (People chain's
+ * `register_person`). The host shows a stronger confirmation because such a
+ * signature can authorize a transaction; prefer `useSignRaw` everywhere a
+ * runtime does not force otherwise. Host-only.
+ *
+ * @deprecated Temporary compatibility path, deprecated host-side too; disappears once runtimes accept watermarked proofs.
+ */
+export function useSignRawUnwatermarked(options?: {
+  mutation?: MutationOptions<Uint8Array, Uint8Array>;
+}): NamedMutation<Uint8Array, Uint8Array> & {
+  sign: (data: Uint8Array) => Promise<Uint8Array>;
+} {
+  const runtime = useRuntime();
+  const mutation = useTruapiMutation(
+    (data: Uint8Array) => runtime.accounts.signRawUnwatermarked(data),
+    options?.mutation,
+  );
+  return {
+    ...dropMutate(mutation),
+    sign: (data: Uint8Array) => mutation.mutateAsync(data),
+  };
+}
+
 export interface SignVrfVariables {
   /** Root domain-separation label: `Transcript::new(transcriptLabel)`. */
   transcriptLabel: Uint8Array;

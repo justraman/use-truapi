@@ -1,0 +1,62 @@
+---
+title: useWorkerOperation
+description: Keep a background Worker runtime alive while an operation is pending
+---
+
+`useWorkerOperation` wraps the `Worker` domain for products that run as a
+background worker: the host keeps the runtime alive while at least one
+operation is open, which is how a worker outlives the surface that started
+it. `begin(label?)` opens an operation and resolves its id, `end(id)` closes
+it (idempotent, so a retry after an ambiguous failure is safe), and
+`run(work, label?)` wraps an async function in one, ending it however the
+work settles.
+
+Only meaningful inside a worker execution; a plain app surface has nothing
+to keep alive. Host-only: standalone every call rejects with
+`HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useWorkerOperation } from "@use-truapi/react";
+
+function Sync() {
+  const { run } = useWorkerOperation();
+  async function onSync() {
+    await run(() => syncEverything(), "sync");
+  }
+  return <button type="button" onClick={onSync}>Sync</button>;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useWorkerOperation } from "@use-truapi/vue";
+
+const { run } = useWorkerOperation();
+const onSync = () => run(() => syncEverything(), "sync");
+</script>
+
+<template>
+  <button type="button" @click="onSync">Sync</button>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useWorkerOperation.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useWorkerOperation.md</include>

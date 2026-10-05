@@ -1,0 +1,5 @@
+{
+  "title": "Pocket & renderer",
+  "description": "The product's cards in the host's Pocket tab, and product-rendered bodies",
+  "pages": ["use-pocket-cards", "use-remove-pocket-card", "use-pocket-card", "use-pocket-card-actions", "use-renderer"]
+}

@@ -1,0 +1,62 @@
+---
+title: useRenderer
+description: Draw product-rendered bodies (chat messages, input widgets) through the host's render slot
+---
+
+`useRenderer(tag, handler)` claims one render context (`"ChatMessage"`,
+`"Input"`, …) on the client's single render slot and draws it. The host calls
+`handler(request, send, interrupt)` whenever a body of that kind is shown:
+`request` carries the context (`roomId` and `messageId` for a chat message)
+and the `payload`, `send(body)` pushes a `RendererNode` tree and may be
+called again to redraw in place, and `interrupt(reason)` ends the stream. The
+return value is the cleanup to run when the body leaves the screen.
+
+Claiming a second context leaves the first alone; claiming the same one
+again replaces its handler. Pocket cards have their own hook,
+[`usePocketCard`](/docs/pocket/use-pocket-card), which claims `PocketCard`
+for you. Host-only: standalone nothing is registered and `onError` receives
+`HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useRenderer } from "@use-truapi/react";
+
+function ChatBodies() {
+  useRenderer("ChatMessage", (request, send) => {
+    if (request.context.tag !== "ChatMessage") return;
+    send({ tag: "String", value: { text: `message ${request.context.value.messageId}` } });
+  });
+  return null;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useRenderer } from "@use-truapi/vue";
+
+useRenderer("ChatMessage", (request, send) => {
+  if (request.context.tag !== "ChatMessage") return;
+  send({ tag: "String", value: { text: `message ${request.context.value.messageId}` } });
+});
+</script>
+```
+
+</Tab>
+</Tabs>
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useRenderer.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useRenderer.md</include>

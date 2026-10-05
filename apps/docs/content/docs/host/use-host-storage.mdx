@@ -13,10 +13,14 @@ container (persisted by the host, scoped to your product), browser
 localStorage standalone. The hook behaves identically in both, making this
 one of the few host APIs that needs no gating.
 
-Writes update the cached value in place, so every component reading the same
-key sees the new value immediately, with no refetch and no flicker. Values
-are JSON round-tripped: store plain serializable data (no `bigint`, `Date`
-or `Uint8Array`).
+The value is live. Inside a host the hook subscribes to the key
+(`LocalStorage.subscribe`), so a write or clear by any of the product's
+runtimes, a background worker included, shows up without a refetch; on hosts
+that predate the subscription it degrades to a one-shot read. Standalone it
+follows the browser's cross-tab `storage` event. Your own writes update the
+cached value in place as well, so every component reading the same key sees
+the new value immediately, with no flicker. Values are JSON round-tripped:
+store plain serializable data (no `bigint`, `Date` or `Uint8Array`).
 
 ## Usage
 

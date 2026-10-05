@@ -78,6 +78,16 @@ export interface AccountsController {
    */
   ensureChainSubmitPermission(): Promise<void>;
   /**
+   * Sign bytes with the product account **without** the `<Bytes>` watermark,
+   * for runtimes that verify a bare-byte ownership proof (People chain's
+   * `register_person`). Deprecated on the host side too: the host shows a
+   * stronger confirmation because such a signature can authorize a
+   * transaction. Prefer `signRaw`. Host-only.
+   *
+   * @deprecated Temporary compatibility path; disappears once runtimes accept watermarked proofs.
+   */
+  signRawUnwatermarked(data: Uint8Array): Promise<Uint8Array>;
+  /**
    * RFC-0023 sr25519 VRF signature over a Merlin transcript built from
    * `transcriptLabel` and `items`, signed by a product account (the
    * configured one by default). Host-only.
@@ -222,6 +232,16 @@ export function createAccountsController<TChains extends AnyChains>(
       const granted = await host.requestPermission({ tag: "ChainSubmit", value: undefined });
       if (!granted)
         throw new Error("use-truapi: the host denied permission to submit transactions");
+    },
+    signRawUnwatermarked: async (data) => {
+      await connect();
+      const provider = await requireProvider();
+      const selected = state.get().selectedAccount;
+      if (!selected) throw new Error("use-truapi: connect an account before signing");
+      return provider.signRawUnwatermarkedDeprecated(
+        { dotNsIdentifier: await getProductId(), derivationIndex, publicKey: selected.publicKey },
+        data,
+      );
     },
     // The ring-VRF and VRF paths need a connected host provider; connect on
     // demand so callers get the same click-to-sign ergonomics as `tx.submit`.

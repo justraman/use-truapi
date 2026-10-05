@@ -15,6 +15,7 @@ import {
   useRingVrfSign,
   useSelectedAccount,
   useSignRaw,
+  useSignRawUnwatermarked,
   useSignVrf,
   useSigner,
   useUserId,
@@ -36,6 +37,8 @@ export function AccountsPanel() {
   const userId = useUserId();
   const login = useLogin();
   const signRaw = useSignRaw();
+  // Deprecated bare-byte signature some runtimes still verify (People `register_person`).
+  const signUnwatermarked = useSignRawUnwatermarked();
   const signVrf = useSignVrf();
 
   // RFC-0024 personhood: ring-VRF keys live on the People chain, which the host
@@ -65,6 +68,7 @@ export function AccountsPanel() {
     connect.error ??
     login.error ??
     signRaw.error ??
+    signUnwatermarked.error ??
     signVrf.error ??
     keys.error ??
     registerKey.error ??
@@ -151,6 +155,20 @@ export function AccountsPanel() {
           Sign message
         </button>
         {signRaw.data && <code data-testid="sign-raw-result">{hexPreview(signRaw.data)}</code>}
+      </HookRow>
+      <HookRow hook="useSignRawUnwatermarked">
+        <button
+          type="button"
+          data-testid="sign-unwatermarked"
+          disabled={!isHost || signUnwatermarked.isPending}
+          onClick={() => void signUnwatermarked.sign(encode("ownership proof")).catch(() => {})}
+        >
+          Sign without watermark (deprecated)
+        </button>
+        {signUnwatermarked.data && (
+          <code data-testid="sign-unwatermarked-result">{hexPreview(signUnwatermarked.data)}</code>
+        )}
+        {!isHost && <span className="muted">host only</span>}
       </HookRow>
       <HookRow hook="useSignVrf">
         <button

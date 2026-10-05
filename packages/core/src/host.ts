@@ -15,6 +15,7 @@ import {
   type Result,
   type TruApi,
   formatHostError,
+  fromHex,
   getHostChainInfo,
   getHostLocalStorage,
   getNotificationManager,
@@ -31,12 +32,14 @@ import {
   requestResourceAllocation as sdkRequestResourceAllocation,
   subscribeConnectionStatus,
 } from "@parity/product-sdk-host";
-import type { HostInfo, HostPlatform } from "@parity/truapi";
+import type { ContactHandle, ContactPickOutcome, HostInfo, HostPlatform } from "@parity/truapi";
 import { type ReadonlyStore, type Store, createLazyStore, createStore } from "./store";
 
 export type HostMode = "unknown" | "host" | "standalone";
 
 export type {
+  ContactHandle,
+  ContactPickOutcome,
   HostChainDiscovery,
   HostChainIdentifier,
   HostConnectionStatus,
@@ -90,9 +93,29 @@ export interface HostController {
    * the host serves none of the roles.
    */
   getChainInfo(identifiers: readonly HostChainIdentifier[]): Promise<HostChainDiscovery | null>;
+  /**
+   * Open the host's contact picker (`Contacts.pick`). The product never sees
+   * the contact list: the user picks in host UI and the product receives an
+   * opaque handle it can only hand back to the host. Resolves `Dismissed` or
+   * `NoContacts` as data; throws `HostUnavailableError` standalone and on
+   * hosts that serve no picker.
+   */
+  pickContact(): Promise<ContactPickOutcome>;
+  /** Background-operation bookkeeping for Worker-execution products. */
+  worker: HostWorker;
   pushNotification(input: PushNotificationInput): Promise<NotificationId>;
   cancelNotification(id: NotificationId): Promise<void>;
   storage: HostKvStorage;
+}
+
+export interface HostWorker {
+  /**
+   * Begin a pending operation: the host keeps the product's worker alive while
+   * at least one is open. Resolves the operation id. Host-only.
+   */
+  beginOperation(label?: string): Promise<number>;
+  /** End a pending operation. Idempotent, so a retry after an ambiguous failure is safe. */
+  endOperation(id: number): Promise<void>;
 }
 
 export interface HostKvStorage {
@@ -101,6 +124,17 @@ export interface HostKvStorage {
   getJSON<T>(key: string): Promise<T | null>;
   setJSON<T>(key: string, value: T): Promise<void>;
   remove(key: string): Promise<void>;
+  /**
+   * Live value of `key`: the current value first, then every later write or
+   * clear by any of the product's runtimes (`LocalStorage.subscribe`).
+   * Standalone it follows the browser's cross-tab `storage` event. On hosts
+   * that predate the subscription it degrades to a one-shot read.
+   */
+  watch(
+    key: string,
+    onValue: (value: string | null) => void,
+    options?: { onError?: (error: unknown) => void },
+  ): () => void;
 }
 
 /**
@@ -123,6 +157,10 @@ export function isUnsupportedCall(error: unknown): boolean {
  */
 const PROBE_TIMEOUT_MS = 3_000;
 
+type HostCall<T> = {
+  match: <A, B>(onOk: (value: T) => A, onErr: (error: unknown) => B) => Promise<A | B>;
+};
+
 /**
  * Run a raw truapi call that the SDK has no wrapper for yet. Resolves `null`
  * standalone, when the host reports the method as unsupported, and when a
@@ -132,9 +170,7 @@ const PROBE_TIMEOUT_MS = 3_000;
 async function bestEffortCall<T>(
   detect: () => Promise<boolean>,
   label: string,
-  call: (truapi: TruApi) => {
-    match: <A, B>(onOk: (value: T) => A, onErr: (error: unknown) => B) => Promise<A | B>;
-  },
+  call: (truapi: TruApi) => HostCall<T>,
 ): Promise<T | null> {
   if (!(await detect())) return null;
   const truapi = await getTruApi();
@@ -152,6 +188,31 @@ async function bestEffortCall<T>(
   });
   return Promise.race([probe, timeout]).finally(() => clearTimeout(timer));
 }
+
+/**
+ * Run a raw truapi call that needs a host: throws `HostUnavailableError`
+ * standalone and when the host does not implement the method, and the host's
+ * reason for any other failure. No deadline — these calls may wait on the user.
+ */
+async function hostCall<T>(
+  detect: () => Promise<boolean>,
+  what: string,
+  call: (truapi: TruApi) => HostCall<T>,
+): Promise<T> {
+  const truapi = (await detect()) ? await getTruApi() : null;
+  if (!truapi) throw new HostUnavailableError(what);
+  return call(truapi).match(
+    (value) => value,
+    (error) => {
+      if (isUnsupportedCall(error)) {
+        throw new HostUnavailableError(`${what}: this host does not implement it`);
+      }
+      throw new Error(`use-truapi: ${what} failed: ${formatHostError(error)}`, { cause: error });
+    },
+  );
+}
+
+const textDecoder = new TextDecoder();
 
 export function createHostController(): HostController {
   const inside = isInsideContainerSync();
@@ -239,6 +300,53 @@ export function createHostController(): HostController {
       }
       globalThis.localStorage?.removeItem(key);
     },
+    watch(key, onValue, options) {
+      let cancelled = false;
+      let teardown: (() => void) | undefined;
+      void detect().then(async (hosted) => {
+        if (cancelled) return;
+        const truapi = hosted ? await getTruApi() : null;
+        if (cancelled) return;
+        if (!truapi) {
+          // Standalone: the browser's own store, kept live across tabs.
+          onValue(globalThis.localStorage?.getItem(key) ?? null);
+          const onStorage = (event: StorageEvent) => {
+            if (event.key === null || event.key === key) {
+              onValue(globalThis.localStorage?.getItem(key) ?? null);
+            }
+          };
+          globalThis.addEventListener?.("storage", onStorage);
+          teardown = () => globalThis.removeEventListener?.("storage", onStorage);
+          return;
+        }
+        // The host emits the current value first, so a settled stream is the
+        // live path; a stream that ends before its first item is a host that
+        // predates the subscription — degrade to a one-shot read.
+        let settled = false;
+        const fallback = () => {
+          if (settled) return;
+          settled = true;
+          storage.getString(key).then(onValue, (e) => options?.onError?.(e));
+        };
+        const sub = truapi.localStorage.subscribe({ request: { key } }).subscribe({
+          next: (item) => {
+            settled = true;
+            const bytes = item.value !== undefined ? fromHex(item.value) : undefined;
+            const text = bytes && bytes.length > 0 ? textDecoder.decode(bytes) : null;
+            onValue(text);
+          },
+          error: (reason) => (settled ? options?.onError?.(reason) : fallback()),
+          complete: () =>
+            settled ? options?.onError?.(new Error("subscription ended")) : fallback(),
+        });
+        teardown = () => sub.unsubscribe();
+        if (cancelled) teardown();
+      });
+      return () => {
+        cancelled = true;
+        teardown?.();
+      };
+    },
   };
 
   let info: Promise<HostInfo | null> | null = null;
@@ -280,6 +388,25 @@ export function createHostController(): HostController {
       return productContext;
     },
     getChainInfo: async (identifiers) => ((await detect()) ? getHostChainInfo(identifiers) : null),
+    pickContact: async () =>
+      (
+        await hostCall<{ outcome: ContactPickOutcome }>(detect, "contact picker", (truapi) =>
+          truapi.contacts.pick({}),
+        )
+      ).outcome,
+    worker: {
+      beginOperation: async (label) =>
+        (
+          await hostCall<{ id: number }>(detect, "worker operations", (truapi) =>
+            truapi.worker.beginOperation(label !== undefined ? { label } : {}),
+          )
+        ).id,
+      endOperation: async (id) => {
+        await hostCall<undefined>(detect, "worker operations", (truapi) =>
+          truapi.worker.endOperation({ id }),
+        );
+      },
+    },
     pushNotification: async (input) =>
       (await requireHost(getNotificationManager, "notifications")).push(input),
     cancelNotification: async (id) =>

@@ -33,14 +33,14 @@
   },
   "dependencies": {
     "@parity/product-sdk-address": "^0.2.0",
-    "@parity/product-sdk-cloud-storage": "^0.11.3",
-    "@parity/product-sdk-contracts": "^0.10.7",
-    "@parity/product-sdk-host": "^0.19.1",
-    "@parity/product-sdk-signer": "^0.14.4",
-    "@parity/product-sdk-statement-store": "^0.6.9",
-    "@parity/product-sdk-tx": "^0.4.7",
-    "@parity/product-sdk-utils": "^0.1.1",
-    "@parity/truapi": "^0.13.1",
+    "@parity/product-sdk-cloud-storage": "^0.12.5",
+    "@parity/product-sdk-contracts": "^0.10.12",
+    "@parity/product-sdk-host": "^0.24.0",
+    "@parity/product-sdk-signer": "^0.16.0",
+    "@parity/product-sdk-statement-store": "^0.6.14",
+    "@parity/product-sdk-tx": "^0.4.12",
+    "@parity/product-sdk-utils": "^0.2.0",
+    "@parity/truapi": "^0.23.0",
     "polkadot-api": "^2.1.6"
   },
   "devDependencies": {

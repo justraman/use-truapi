@@ -9,6 +9,8 @@ import {
   useHostConnectionStatus,
   useHostInfo,
   useLocale,
+  usePickContact,
+  usePocketCards,
   useProductContext,
 } from "../src/index";
 
@@ -57,5 +59,16 @@ describe("host capability composables standalone", () => {
     expect(result.info.data.value).toBeNull();
     expect(result.context.data.value).toBeNull();
     expect(result.chains.data.value).toBeNull();
+  });
+
+  it("usePocketCards errors and usePickContact rejects standalone", async () => {
+    const result = withSetup(() => ({
+      cards: usePocketCards({ query: { retry: false } }),
+      pick: usePickContact(),
+    }));
+    await flush(60);
+    expect(result.cards.isError.value).toBe(true);
+    expect(result.cards.error.value?.name).toBe("HostUnavailableError");
+    await expect(result.pick.pick()).rejects.toMatchObject({ name: "HostUnavailableError" });
   });
 });

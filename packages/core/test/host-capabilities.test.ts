@@ -1,9 +1,10 @@
 import type { ChainDefinition } from "polkadot-api";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createChainController } from "../src/chain";
 import { defineConfig } from "../src/config";
 import { createHostController, isUnsupportedCall } from "../src/host";
 import { createLocaleStore } from "../src/locale";
+import { createPocketController, createRendererController } from "../src/pocket";
 import { createPreimageController } from "../src/preimage";
 
 // Node has no host container: every host-only capability must degrade to null
@@ -103,5 +104,72 @@ describe("chain config with hostChain roles", () => {
     await expect(chains.getGenesisHash("pinned")).resolves.toBe("0x11");
     await expect(chains.getGenesisHash("discovered")).resolves.toBeNull();
     chains.destroy();
+  });
+});
+
+describe("truapi 0.23 surfaces standalone", () => {
+  it("contact picker and worker operations throw HostUnavailableError", async () => {
+    const host = createHostController();
+    await expect(host.pickContact()).rejects.toMatchObject({ name: "HostUnavailableError" });
+    await expect(host.worker.beginOperation("x")).rejects.toMatchObject({
+      name: "HostUnavailableError",
+    });
+    await expect(host.worker.endOperation(1)).rejects.toMatchObject({
+      name: "HostUnavailableError",
+    });
+  });
+
+  it("storage.watch emits the current browser value immediately and tears down", async () => {
+    const backing = new Map<string, string>([["k", "v1"]]);
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => backing.get(k) ?? null,
+      setItem: (k: string, v: string) => void backing.set(k, v),
+      removeItem: (k: string) => void backing.delete(k),
+    });
+    try {
+      const host = createHostController();
+      const seen: (string | null)[] = [];
+      const stop = host.storage.watch("k", (v) => seen.push(v));
+      await new Promise((r) => setTimeout(r, 10));
+      expect(seen).toEqual(["v1"]);
+      stop();
+      stop();
+      const missing: (string | null)[] = [];
+      const stopMissing = host.storage.watch("absent", (v) => missing.push(v));
+      await new Promise((r) => setTimeout(r, 10));
+      expect(missing).toEqual([null]);
+      stopMissing();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("pocket and renderer degrade standalone", async () => {
+    const host = createHostController();
+    const pocket = createPocketController(host);
+    const renderer = createRendererController(host);
+    await expect(pocket.getManager()).resolves.toBeNull();
+    await expect(pocket.removeCard("c")).rejects.toMatchObject({ name: "HostUnavailableError" });
+    const errors: unknown[] = [];
+    const stopCards = pocket.watchCards(
+      () => {},
+      (e) => errors.push(e),
+    );
+    const stopDraw = pocket.drawCard(
+      "c",
+      () => {},
+      (e) => errors.push(e),
+    );
+    const stopRender = renderer.draw(
+      "ChatMessage",
+      () => {},
+      (e) => errors.push(e),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+    expect(errors).toHaveLength(3);
+    for (const e of errors) expect(e).toMatchObject({ name: "HostUnavailableError" });
+    stopCards();
+    stopDraw();
+    stopRender();
   });
 });

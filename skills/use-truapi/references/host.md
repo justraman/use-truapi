@@ -47,6 +47,17 @@ const assetHub = data?.chains.AssetHub ?? (paseo_asset_hub.genesis as `0x${strin
 - Live: the language the host presents its UI in (`Locale.subscribe`) when embedded; `navigator.language` (+ `languagechange`) standalone. `languageTag` is an open BCP 47 tag (`en`, `pt-BR`, `zh-Hans`) — pick your own fallback for tags you don't ship.
 - Hosts predating the locale domain end the subscription; the hook keeps the navigator value. Vue returns a `ShallowRef`.
 
+## usePickContact
+`usePickContact(options?: { mutation? }) → { pick(): Promise<ContactPickOutcome>, ...mutation state }` — `ContactPickOutcome = { tag: "Picked", value: { handle: { bytes: "0x…" } } } | { tag: "Dismissed" } | { tag: "NoContacts" }`
+- The host renders its own picker; the product never sees the list and no permission is needed (the pick is the consent). `Dismissed`/`NoContacts` are data, not errors.
+- The handle is opaque: stable per person across products (usable as a key), never convertible to an address. Paying it requires a transaction that lists the handle in its `contacts`, which the product-sdk signer does not expose yet — so `useTx` cannot pay a picked contact today.
+- Host-only: standalone, and on hosts without a picker, `pick` rejects with `HostUnavailableError`.
+
+## useWorkerOperation
+`useWorkerOperation() → { begin(label?): Promise<number>, end(id): Promise<void>, run<T>(work: () => Promise<T>, label?): Promise<T> }`
+- Worker-execution products only: the host keeps the worker alive while ≥1 operation is open. `end` is idempotent; `run` ends the operation however `work` settles.
+- Plain functions, no mutation state. Host-only: every call rejects with `HostUnavailableError` standalone.
+
 ## usePermission
 `usePermission(options?: { mutation? }) → { request(permission: RemotePermission): Promise<boolean>, ...mutation state }`
 - RFC-0002 remote permissions. `RemotePermission` variants: `{ tag: "Remote", value: { domains: string[] } }`, `{ tag: "WebRtc" }`, `{ tag: "ChainSubmit" }`, `{ tag: "PreimageSubmit" }`, `{ tag: "StatementSubmit" }`.
@@ -123,6 +134,7 @@ await cancel(id);
 `useHostStorage<T>(key: string, options?: { query? }): UseQueryResult<T | null, Error> & { set(value: T): Promise<void>, remove(): Promise<void> }`
 - Product-scoped JSON KV store. `data` is the parsed value, `null` when unset. Type via the generic for typed `data`/`set`.
 - Backing store follows the environment: host localStorage in a container (host-persisted, product-scoped), browser localStorage standalone — identical behavior, one of the few host APIs needing NO gating.
+- Live: in a host the key is subscribed (`LocalStorage.subscribe`), so writes from the product's other runtimes (a worker) arrive without refetch; legacy hosts degrade to a one-shot read. Standalone it follows the cross-tab `storage` event.
 - Writes update the query cache in place (key `queryKeys.hostStorage(key)`): every component reading the key sees the new value immediately, no refetch/flicker. Values are JSON round-tripped — no `bigint`, `Date`, or `Uint8Array`.
 - Vue: the key can be a getter (`() => "draft:" + props.id`); the query re-runs AND the writers retarget when it changes.
 

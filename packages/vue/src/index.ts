@@ -27,6 +27,7 @@ export * from "./composables/statements";
 export * from "./composables/payments";
 export * from "./composables/storage";
 export * from "./composables/preimage";
+export * from "./composables/pocket";
 export * from "./composables/format";
 
 // Everything an app needs from core, re-exported so `@use-truapi/vue` is
@@ -64,6 +65,8 @@ export type {
   AnyChains,
   CdmJson,
   ChainConfig,
+  ContactHandle,
+  ContactPickOutcome,
   Contract,
   ContractDef,
   HostChainDiscovery,
@@ -72,8 +75,11 @@ export type {
   HostInfo,
   HostPlatform,
   LocaleState,
+  PocketCard,
+  PocketCardAction,
   ProductContext,
   RegisteredRingVrfKey,
+  RendererNode,
   RingLocation,
   RingVrfKeyHandle,
   SignerAccount,

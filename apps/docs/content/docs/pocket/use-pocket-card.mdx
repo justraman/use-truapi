@@ -1,0 +1,70 @@
+---
+title: usePocketCard
+description: Draw a Pocket card's face whenever the host puts it on screen
+---
+
+`usePocketCard(cardId, draw)` registers the handler that draws one of the
+product's cards. Whenever the host shows the card it calls
+`draw(send, render)`: `send(face)` pushes a `RendererNode` tree and may be
+called as often as the product likes for as long as the card is on screen
+(that is what makes a card different from a picture), `render` carries the
+`cardId` and the `payload` the host attached, and the return value is the
+cleanup to run when the card leaves. A handler that throws costs that one
+render rather than every card the product has.
+
+The product declares its cards in the worker manifest; this hook only draws
+them. Register once per card for the component's lifetime, the latest `draw`
+is always the one used. Host-only: standalone nothing is registered and
+`onError` receives `HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { usePocketCard } from "@use-truapi/react";
+
+function BalanceCard({ balance }: { balance: string }) {
+  usePocketCard("balance", (send) => {
+    send({ tag: "String", value: { text: `Balance: ${balance}` } });
+    const timer = setInterval(() => send({ tag: "String", value: { text: `Balance: ${balance}` } }), 10_000);
+    return () => clearInterval(timer);
+  });
+  return null;
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { usePocketCard } from "@use-truapi/vue";
+
+const props = defineProps<{ balance: string }>();
+usePocketCard("balance", (send) => {
+  send({ tag: "String", value: { text: `Balance: ${props.balance}` } });
+});
+</script>
+```
+
+Pass a getter for `cardId` to re-register when it changes.
+
+</Tab>
+</Tabs>
+
+## See also
+
+- [`usePocketCardActions`](/docs/pocket/use-pocket-card-actions) is the way back from a face.
+- [`useRenderer`](/docs/pocket/use-renderer) draws the other render contexts.
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/usePocketCard.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/usePocketCard.md</include>

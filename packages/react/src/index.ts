@@ -19,6 +19,7 @@ export * from "./hooks/statements";
 export * from "./hooks/payments";
 export * from "./hooks/storage";
 export * from "./hooks/preimage";
+export * from "./hooks/pocket";
 export * from "./hooks/format";
 
 // Everything an app needs from core, re-exported so `@use-truapi/react` is
@@ -56,6 +57,8 @@ export type {
   AnyChains,
   CdmJson,
   ChainConfig,
+  ContactHandle,
+  ContactPickOutcome,
   Contract,
   ContractDef,
   HostChainDiscovery,
@@ -64,8 +67,11 @@ export type {
   HostInfo,
   HostPlatform,
   LocaleState,
+  PocketCard,
+  PocketCardAction,
   ProductContext,
   RegisteredRingVrfKey,
+  RendererNode,
   RingLocation,
   RingVrfKeyHandle,
   SignerAccount,

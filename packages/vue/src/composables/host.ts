@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/vue-query";
 import {
+  type ContactPickOutcome,
   type HostChainDiscovery,
   type HostChainIdentifier,
   type HostConnectionStatus,
@@ -20,6 +21,7 @@ import {
   type QueryResult,
   dropMutate,
   toGetter,
+  useLiveQuery,
   useStore,
   useTruapiMutation,
   useTruapiQuery,
@@ -93,6 +95,57 @@ export function useHostChainInfo(
     () => runtime.host.getChainInfo(get()),
     options,
   );
+}
+
+/**
+ * Open the host's contact picker: `pick()` resolves a `ContactPickOutcome` —
+ * `{ tag: "Picked", value: { handle } }` with an opaque handle the host later
+ * resolves to the person's account, or `Dismissed` / `NoContacts` as data.
+ * The product never sees the contact list. Host-only: standalone (and on hosts
+ * without a picker) `pick` rejects with `HostUnavailableError`.
+ */
+export function usePickContact(options?: {
+  mutation?: MutationOptions<ContactPickOutcome, void>;
+}): NamedMutation<ContactPickOutcome, void> & { pick: () => Promise<ContactPickOutcome> } {
+  const runtime = useRuntime();
+  const mutation = useTruapiMutation(() => runtime.host.pickContact(), options?.mutation);
+  return {
+    ...dropMutate(mutation),
+    pick: () => mutation.mutateAsync(),
+  };
+}
+
+export interface WorkerOperationApi {
+  /** Open a pending operation the host keeps the worker alive for; resolves its id. */
+  begin: (label?: string) => Promise<number>;
+  /** Close an operation. Idempotent. */
+  end: (id: number) => Promise<void>;
+  /** Run `work` inside an operation, ending it however `work` settles. */
+  run: <T>(work: () => Promise<T>, label?: string) => Promise<T>;
+}
+
+/**
+ * Worker-lifecycle bookkeeping for products that run as a background
+ * `Worker`: wrap long-running work in an operation so the host does not stop
+ * the runtime mid-way. Host-only; every call rejects with
+ * `HostUnavailableError` standalone.
+ */
+export function useWorkerOperation(): WorkerOperationApi {
+  const runtime = useRuntime();
+  const begin = (label?: string) => runtime.host.worker.beginOperation(label);
+  const end = (id: number) => runtime.host.worker.endOperation(id);
+  return {
+    begin,
+    end,
+    run: async <T>(work: () => Promise<T>, label?: string): Promise<T> => {
+      const id = await begin(label);
+      try {
+        return await work();
+      } finally {
+        await end(id).catch(() => {});
+      }
+    },
+  };
 }
 
 /** RFC-0002 remote permissions (ChainSubmit, StatementSubmit, Remote domains, …): `request(permission)`. */
@@ -225,9 +278,11 @@ export type HostStorageValue<T> = QueryResult<T | null> & {
 };
 
 /**
- * Product-scoped KV storage: host localStorage inside a container, browser
- * localStorage standalone. JSON-serialized. Writes update the query cache
- * in place under `queryKeys.hostStorage(key)`.
+ * Product-scoped KV storage, live: host localStorage inside a container
+ * (`LocalStorage.subscribe`, so writes from the product's other runtimes show
+ * up), browser localStorage standalone (following the cross-tab `storage`
+ * event). JSON-serialized. Writes update the query cache in place under
+ * `queryKeys.hostStorage(key)`.
  */
 export function useHostStorage<T>(
   key: MaybeGetter<string>,
@@ -236,11 +291,16 @@ export function useHostStorage<T>(
   const runtime = useRuntime();
   const queryClient = useQueryClient();
   const getKey = toGetter(key);
-  const data = useTruapiQuery<T | null>(
-    () => queryKeys.hostStorage(getKey()),
-    () => runtime.host.storage.getJSON<T>(getKey()),
-    options,
-  );
+  const data = useLiveQuery<T | null>({
+    queryKey: () => queryKeys.hostStorage(getKey()),
+    attach: (onValue, onError) =>
+      runtime.host.storage.watch(
+        getKey(),
+        (raw) => onValue(raw === null ? null : (JSON.parse(raw) as T)),
+        { onError },
+      ),
+    ...(options?.query !== undefined ? { query: options.query } : {}),
+  });
   return Object.assign({}, data, {
     set: async (value: T) => {
       await runtime.host.storage.setJSON(getKey(), value);

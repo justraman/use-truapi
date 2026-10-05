@@ -5,9 +5,14 @@ import {
   useHostChainInfo,
   useHostNavigate,
   useHostStorage,
+  useIsHost,
   useNotifications,
   usePermission,
+  usePickContact,
+  usePocketCards,
+  useRemovePocketCard,
   useResourceAllocation,
+  useWorkerOperation,
 } from "@use-truapi/vue";
 import { computed, ref } from "vue";
 import { hexPreview } from "../ui";
@@ -34,6 +39,49 @@ const chainsLabel = computed(() => {
     .map(([role, genesis]) => `${role} ${genesis.slice(0, 10)}…`)
     .join(" · ");
 });
+const isHost = useIsHost();
+// Contacts: the host shows its own picker; the product only gets an opaque handle.
+const contact = usePickContact();
+const contactLabel = computed(() => {
+  const outcome = contact.data.value;
+  if (!outcome) return "";
+  return outcome.tag === "Picked"
+    ? `picked ${outcome.value.handle.bytes.slice(0, 10)}…`
+    : outcome.tag;
+});
+// Worker lifecycle: keep the host from stopping a background runtime mid-task.
+const worker = useWorkerOperation();
+const operationId = ref<number | null>(null);
+const workerError = ref<Error | null>(null);
+function onBeginOperation() {
+  void worker
+    .begin("example")
+    .then((id) => {
+      operationId.value = id;
+      workerError.value = null;
+    })
+    .catch((e: Error) => {
+      workerError.value = e;
+    });
+}
+function onEndOperation() {
+  if (operationId.value === null) return;
+  void worker
+    .end(operationId.value)
+    .then(() => {
+      operationId.value = null;
+    })
+    .catch((e: Error) => {
+      workerError.value = e;
+    });
+}
+// Pocket: the product's own cards in the host's Pocket tab (host owns the set).
+const cards = usePocketCards({ enabled: () => isHost.value });
+const removeCard = useRemovePocketCard();
+function onRemoveCard() {
+  const first = cards.data.value?.[0];
+  if (first) void removeCard.remove(first.cardId).catch(() => {});
+}
 const draft = ref("");
 
 const firstError = computed(
@@ -43,7 +91,11 @@ const firstError = computed(
     devicePermission.error.value ??
     allocation.error.value ??
     entropy.error.value ??
-    chains.error.value,
+    chains.error.value ??
+    contact.error.value ??
+    workerError.value ??
+    removeCard.error.value ??
+    (isHost.value ? cards.error.value : null),
 );
 
 function onCancelNotification() {
@@ -144,6 +196,42 @@ function onDeriveEntropy() {
         <template v-if="chains.data.value">network <code>{{ chains.data.value.network }}</code>: </template>
         {{ chainsLabel }}
       </span>
+    </HookRow>
+    <HookRow hook="usePickContact">
+      <button
+        type="button"
+        data-testid="pick-contact"
+        :disabled="!isHost || contact.isPending.value"
+        @click="contact.pick().catch(() => {})"
+      >
+        Pick a contact
+      </button>
+      <span v-if="contact.data.value" class="badge" data-testid="pick-contact-result">{{ contactLabel }}</span>
+      <span v-if="!isHost" class="muted">host only</span>
+    </HookRow>
+    <HookRow hook="useWorkerOperation">
+      <button type="button" data-testid="worker-begin" :disabled="!isHost || operationId !== null" @click="onBeginOperation">
+        Begin operation
+      </button>
+      <button type="button" data-testid="worker-end" :disabled="operationId === null" @click="onEndOperation">
+        End operation
+      </button>
+      <span class="muted" data-testid="worker-operation">
+        {{ operationId === null ? "no open operation" : `operation #${operationId} open` }}
+      </span>
+    </HookRow>
+    <HookRow :hook="['usePocketCards', 'useRemovePocketCard']">
+      <span class="badge" data-testid="pocket-cards">
+        {{ isHost ? `${cards.data.value?.length ?? 0} pocket card${cards.data.value?.length === 1 ? "" : "s"}` : "host only" }}
+      </span>
+      <button
+        type="button"
+        data-testid="pocket-remove"
+        :disabled="!cards.data.value?.length || removeCard.isPending.value"
+        @click="onRemoveCard"
+      >
+        Remove first card
+      </button>
     </HookRow>
     <HookRow hook="useDeriveEntropy">
       <button

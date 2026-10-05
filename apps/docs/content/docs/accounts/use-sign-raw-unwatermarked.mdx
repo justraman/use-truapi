@@ -1,0 +1,63 @@
+---
+title: useSignRawUnwatermarked
+description: Deprecated bare-byte signature for runtimes that verify an unwatermarked ownership proof
+---
+
+`useSignRawUnwatermarked` signs bytes with the product account **without**
+the `<Bytes>` watermark that [`useSignRaw`](/docs/accounts/use-sign-raw)
+adds. It exists for runtimes that verify a bare-byte ownership proof, the
+People chain's `register_person` `lite_identity_proof` being the one that
+forced it, and nothing else should use it: an unwatermarked signature can
+authorize a transaction, so the host logs a deprecation warning and shows a
+stronger confirmation prompt.
+
+It is deprecated on the host side too and disappears once runtimes accept
+watermarked proofs. Host-only: standalone `sign` rejects with
+`HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useSignRawUnwatermarked } from "@use-truapi/react";
+
+function RegisterPerson({ proofBytes }: { proofBytes: Uint8Array }) {
+  const { sign, isPending } = useSignRawUnwatermarked();
+  return (
+    <button type="button" disabled={isPending} onClick={() => sign(proofBytes).then(submitRegistration)}>
+      Register
+    </button>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useSignRawUnwatermarked } from "@use-truapi/vue";
+
+const props = defineProps<{ proofBytes: Uint8Array }>();
+const { sign, isPending } = useSignRawUnwatermarked();
+</script>
+
+<template>
+  <button type="button" :disabled="isPending" @click="sign(props.proofBytes).then(submitRegistration)">Register</button>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/useSignRawUnwatermarked.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/useSignRawUnwatermarked.md</include>

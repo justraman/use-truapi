@@ -8,10 +8,14 @@ import {
   useHostChainInfo,
   useHostConnectionStatus,
   useHostInfo,
+  useHostStorage,
   useLocale,
+  usePickContact,
+  usePocketCards,
   usePreimage,
   useProductContext,
   useRingVrfKeys,
+  useWorkerOperation,
 } from "../src/index";
 
 const config = defineConfig({
@@ -67,5 +71,42 @@ describe("host capability hooks standalone", () => {
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.name).toBe("HostUnavailableError");
+  });
+
+  it("usePocketCards errors with HostUnavailableError standalone", async () => {
+    const { result } = renderHook(() => usePocketCards({ query: { retry: false } }), { wrapper });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.name).toBe("HostUnavailableError");
+  });
+
+  it("usePickContact and useWorkerOperation reject standalone", async () => {
+    const { result } = renderHook(
+      () => ({ pick: usePickContact(), worker: useWorkerOperation() }),
+      {
+        wrapper,
+      },
+    );
+    await expect(result.current.pick.pick()).rejects.toMatchObject({
+      name: "HostUnavailableError",
+    });
+    await expect(result.current.worker.run(async () => 1)).rejects.toMatchObject({
+      name: "HostUnavailableError",
+    });
+  });
+
+  it("useHostStorage is live: a value written elsewhere is picked up", async () => {
+    const backing = new Map<string, string>();
+    const fakeStorage = {
+      getItem: (k: string) => backing.get(k) ?? null,
+      setItem: (k: string, v: string) => void backing.set(k, v),
+      removeItem: (k: string) => void backing.delete(k),
+    };
+    Object.defineProperty(globalThis, "localStorage", { value: fakeStorage, configurable: true });
+    const { result } = renderHook(() => useHostStorage<{ n: number }>("live-key"), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeNull();
+    backing.set("live-key", JSON.stringify({ n: 7 }));
+    globalThis.dispatchEvent(new StorageEvent("storage", { key: "live-key" }));
+    await waitFor(() => expect(result.current.data).toEqual({ n: 7 }));
   });
 });

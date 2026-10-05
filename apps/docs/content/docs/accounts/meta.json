@@ -10,6 +10,7 @@
     "use-login",
     "use-user-id",
     "use-sign-raw",
+    "use-sign-raw-unwatermarked",
     "use-sign-vrf",
     "use-ring-vrf-keys",
     "use-register-ring-vrf-key",

@@ -1,0 +1,77 @@
+---
+title: usePickContact
+description: Let the user pick a contact in host UI and receive an opaque handle
+---
+
+`usePickContact` opens the host's contact picker (`Contacts.pick`). The
+product never reads the contact list: the host renders the picker over the
+app, and `pick()` resolves a `ContactPickOutcome` — `{ tag: "Picked", value:
+{ handle } }` when the user chose someone, or `Dismissed` / `NoContacts` as
+data. That is also why there is no permission to request: the user choosing
+in host UI is the consent.
+
+The handle is not an address and cannot be turned into one. It is the same
+value for the same person in every product, so it works as a stable key; to
+pay the person it names, a transaction has to carry the handle where the
+recipient goes and declare it in the payload's `contacts` list, which the
+host resolves before signing. The product SDK's signer does not expose that
+list yet, so paying a picked contact is not possible through `useTx` today.
+
+Host-only: standalone, and on hosts that serve no picker, `pick` rejects
+with `HostUnavailableError`.
+
+## Usage
+
+<Tabs groupId="framework" persist items={['React', 'Vue']}>
+<Tab value="React">
+
+```tsx
+import { useIsHost, usePickContact } from "@use-truapi/react";
+
+function PickRecipient() {
+  const isHost = useIsHost();
+  const { pick, data, isPending, error } = usePickContact();
+  return (
+    <>
+      <button type="button" disabled={!isHost || isPending} onClick={() => void pick().catch(() => {})}>
+        Choose a contact
+      </button>
+      {data?.tag === "Picked" && <code>{data.value.handle.bytes}</code>}
+      {data?.tag === "NoContacts" && <p>You have no contacts yet.</p>}
+      {error && <p role="alert">{error.message}</p>}
+    </>
+  );
+}
+```
+
+</Tab>
+<Tab value="Vue">
+
+```vue
+<script setup lang="ts">
+import { useIsHost, usePickContact } from "@use-truapi/vue";
+
+const isHost = useIsHost();
+const { pick, data, isPending, error } = usePickContact();
+</script>
+
+<template>
+  <button type="button" :disabled="!isHost || isPending" @click="pick().catch(() => {})">Choose a contact</button>
+  <code v-if="data?.tag === 'Picked'">{{ data.value.handle.bytes }}</code>
+  <p v-if="data?.tag === 'NoContacts'">You have no contacts yet.</p>
+  <p v-if="error" role="alert">{{ error.message }}</p>
+</template>
+```
+
+</Tab>
+</Tabs>
+
+## API reference
+
+### React
+
+<include>../../../generated/react/functions/usePickContact.md</include>
+
+### Vue
+
+<include>../../../generated/vue/functions/usePickContact.md</include>

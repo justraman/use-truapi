@@ -72,6 +72,12 @@ const { login } = useLogin({ mutation: { onSuccess: () => refetch() } });
 - Signs arbitrary bytes with the currently selected account — for off-chain proofs/auth challenges, not transactions. The `data` argument is required (unlike `connect`/`login`).
 - Rejects (and sets `error`) when no account is connected or the user rejects the signing prompt.
 
+## useSignRawUnwatermarked (deprecated)
+
+`useSignRawUnwatermarked(options?: { mutation? }): { sign(data: Uint8Array) => Promise<Uint8Array>, data, error, isPending, reset }`
+
+- Same as `useSignRaw` but WITHOUT the `<Bytes>` watermark — only for runtimes that verify a bare-byte ownership proof (People chain `register_person` `lite_identity_proof`). Such a signature can authorize a transaction, so the host warns and shows a stronger prompt. Deprecated host-side; use `useSignRaw` everywhere else. Host-only.
+
 ## useSignVrf
 
 `useSignVrf(options?: { mutation? }): { sign(transcriptLabel: Uint8Array, items: { label: Uint8Array; value: Uint8Array }[], account?: ProductAccountLookup) => Promise<VrfSignature>, data, error, isPending, reset }` — `VrfSignature = { preOutput: Uint8Array; proof: Uint8Array }`

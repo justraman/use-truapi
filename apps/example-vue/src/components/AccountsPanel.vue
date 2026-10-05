@@ -16,6 +16,7 @@ import {
   useRingVrfSign,
   useSelectedAccount,
   useSignRaw,
+  useSignRawUnwatermarked,
   useSignVrf,
   useSigner,
   useUserId,
@@ -38,6 +39,8 @@ const signer = useSigner();
 const userId = useUserId();
 const login = useLogin();
 const signRaw = useSignRaw();
+// Deprecated bare-byte signature some runtimes still verify (People `register_person`).
+const signUnwatermarked = useSignRawUnwatermarked();
 const signVrf = useSignVrf();
 
 // RFC-0024 personhood: ring-VRF keys live on the People chain, which the host
@@ -75,6 +78,7 @@ const firstError = computed(
     connect.error.value ??
     login.error.value ??
     signRaw.error.value ??
+    signUnwatermarked.error.value ??
     signVrf.error.value ??
     keys.error.value ??
     registerKey.error.value ??
@@ -88,6 +92,9 @@ function onSelect(event: Event) {
 }
 function onSignRaw() {
   void signRaw.sign(encode("gm from use-truapi")).catch(() => {});
+}
+function onSignUnwatermarked() {
+  void signUnwatermarked.sign(encode("ownership proof")).catch(() => {});
 }
 function onSignVrf() {
   void signVrf
@@ -169,6 +176,20 @@ function onRingSign() {
         Sign message
       </button>
       <code v-if="signRaw.data.value" data-testid="sign-raw-result">{{ hexPreview(signRaw.data.value) }}</code>
+    </HookRow>
+    <HookRow hook="useSignRawUnwatermarked">
+      <button
+        type="button"
+        data-testid="sign-unwatermarked"
+        :disabled="!isHost || signUnwatermarked.isPending.value"
+        @click="onSignUnwatermarked"
+      >
+        Sign without watermark (deprecated)
+      </button>
+      <code v-if="signUnwatermarked.data.value" data-testid="sign-unwatermarked-result">
+        {{ hexPreview(signUnwatermarked.data.value) }}
+      </code>
+      <span v-if="!isHost" class="muted">host only</span>
     </HookRow>
     <HookRow hook="useSignVrf">
       <button type="button" data-testid="sign-vrf" :disabled="!isHost || signVrf.isPending.value" @click="onSignVrf">

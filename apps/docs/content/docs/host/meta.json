@@ -1,6 +1,6 @@
 {
   "title": "Host",
-  "description": "Host detection, identity, theme, locale, permissions, navigation, notifications and KV storage",
+  "description": "Host detection, identity, theme, locale, permissions, contacts, navigation, notifications, worker operations and KV storage",
   "pages": [
     "use-host-mode",
     "use-is-host",
@@ -13,10 +13,12 @@
     "use-permission",
     "use-device-permission",
     "use-resource-allocation",
+    "use-pick-contact",
     "use-host-navigate",
     "use-feature-supported",
     "use-derive-entropy",
     "use-notifications",
+    "use-worker-operation",
     "use-host-storage"
   ]
 }
